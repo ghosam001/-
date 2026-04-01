@@ -461,11 +461,27 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
       <div class="nav-divider"></div>
       <div class="nav-section">
         <div class="nav-section-label">إدارة الأعمال</div>
+        <a href="/clients" class="nav-item ${activeNav === 'clients' ? 'active' : ''}">
+          <i class="fas fa-users"></i> العملاء
+        </a>
+        <a href="/invoices" class="nav-item ${activeNav === 'invoices' ? 'active' : ''}">
+          <i class="fas fa-file-invoice"></i> الفواتير
+        </a>
         <a href="/services" class="nav-item ${activeNav === 'services' ? 'active' : ''}">
           <i class="fas fa-concierge-bell"></i> الخدمات
         </a>
         <a href="/finance" class="nav-item ${activeNav === 'finance' ? 'active' : ''}">
           <i class="fas fa-coins"></i> المالية
+        </a>
+      </div>
+      <div class="nav-divider"></div>
+      <div class="nav-section">
+        <div class="nav-section-label">التواصل والموقع</div>
+        <a href="/whatsapp" class="nav-item ${activeNav === 'whatsapp' ? 'active' : ''}">
+          <i class="fab fa-whatsapp" style="color:#25D366"></i> واتساب
+        </a>
+        <a href="/site" class="nav-item ${activeNav === 'site' ? 'active' : ''}">
+          <i class="fas fa-globe"></i> إدارة الموقع
         </a>
       </div>
       <div class="nav-divider"></div>
@@ -635,6 +651,649 @@ app.get('/', (c) => {
   return c.html(layout('لوحة التحكم', 'dashboard', content))
 })
 
+
+// ======== CLIENTS PAGE ========
+app.get('/clients', (c) => {
+  const content = `
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-header-title">إدارة بيانات العملاء</div>
+      <div class="page-header-sub">تسجيل وحفظ وتصدير بيانات عملاء HEG</div>
+    </div>
+    <i class="fas fa-users page-header-icon"></i>
+  </div>
+
+  <div class="kpi-grid" style="grid-template-columns:repeat(auto-fit,minmax(140px,1fr))">
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#E5F3F5;color:var(--teal-dark)"><i class="fas fa-users"></i></div>
+      <div class="kpi-info"><div class="kpi-label">إجمالي العملاء</div><div class="kpi-value" id="k-total">0</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#E1F5EE;color:#085041"><i class="fas fa-globe"></i></div>
+      <div class="kpi-info"><div class="kpi-label">الجنسيات المختلفة</div><div class="kpi-value" id="k-nat">0</div></div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-icon" style="background:#FAEEDA;color:#BA7517"><i class="fas fa-calendar-plus"></i></div>
+      <div class="kpi-info"><div class="kpi-label">أضيفوا هذا الشهر</div><div class="kpi-value" id="k-new">0</div></div>
+    </div>
+  </div>
+
+  <div class="action-bar">
+    <div class="search-wrap">
+      <i class="fas fa-search"></i>
+      <input id="c-srch" placeholder="بحث بالاسم أو الرقم أو البطاقة..." oninput="renderClients()">
+    </div>
+    <button class="btn btn-primary" onclick="openClientModal()">
+      <i class="fas fa-user-plus"></i> إضافة عميل
+    </button>
+    <button class="btn" onclick="exportExcel()" style="background:#1D6F42;color:#fff">
+      <i class="fas fa-file-excel"></i> تصدير Excel
+    </button>
+  </div>
+
+  <div class="card">
+    <div class="card-body" style="padding:0">
+      <div class="tbl-wrap" style="border:none;border-radius:0;overflow-x:auto">
+        <table id="clients-table">
+          <thead>
+            <tr>
+              <th style="width:40px">#</th>
+              <th style="min-width:170px">الاسم الكامل</th>
+              <th style="min-width:130px">رقم الهاتف</th>
+              <th style="min-width:150px">العنوان</th>
+              <th style="min-width:130px">رقم الهوية / البطاقة</th>
+              <th style="min-width:90px">الجنسية</th>
+              <th style="min-width:100px">تاريخ التسجيل</th>
+              <th style="min-width:120px">ملاحظات</th>
+              <th style="width:100px">إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="clients-body">
+            <tr><td colspan="9" style="text-align:center;padding:36px;color:var(--text-muted)">
+              <i class="fas fa-users" style="font-size:30px;display:block;margin-bottom:10px;opacity:.25"></i>
+              لا يوجد عملاء — ابدأ بإضافة أول عميل
+            </td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div class="modal-overlay" id="client-modal">
+    <div class="modal" style="max-width:640px">
+      <div class="modal-header">
+        <div class="modal-title" id="client-modal-title">
+          <i class="fas fa-user-plus" style="margin-left:6px;color:var(--teal-mid)"></i>إضافة عميل جديد
+        </div>
+        <button class="modal-close" onclick="closeClientModal()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="field full"><label>الاسم الكامل *</label><input id="cl-name" placeholder="الاسم الثلاثي أو الرباعي"></div>
+          <div class="field"><label>رقم الهاتف *</label><input id="cl-phone" placeholder="+968 9X XXX XXX" dir="ltr"></div>
+          <div class="field"><label>رقم بديل</label><input id="cl-phone2" placeholder="اختياري" dir="ltr"></div>
+          <div class="field full"><label>العنوان</label><input id="cl-address" placeholder="المدينة – الحي – الشارع"></div>
+          <div class="field"><label>رقم الهوية / البطاقة</label><input id="cl-id" placeholder="رقم الهوية أو الجواز" dir="ltr"></div>
+          <div class="field">
+            <label>الجنسية</label>
+            <select id="cl-nat">
+              <option value="">— اختر —</option>
+              <option>عُماني</option><option>إماراتي</option><option>سعودي</option>
+              <option>كويتي</option><option>بحريني</option><option>قطري</option>
+              <option>يمني</option><option>مصري</option><option>أردني</option>
+              <option>لبناني</option><option>سوري</option><option>عراقي</option>
+              <option>باكستاني</option><option>هندي</option><option>بنغلاديشي</option>
+              <option>فلبيني</option><option>بريطاني</option><option>أمريكي</option><option>أخرى</option>
+            </select>
+          </div>
+          <div class="field"><label>البريد الإلكتروني</label><input id="cl-email" type="email" placeholder="example@mail.com" dir="ltr"></div>
+          <div class="field"><label>تاريخ الميلاد</label><input id="cl-dob" type="date"></div>
+          <div class="field full"><label>ملاحظات</label><textarea id="cl-note" rows="2" placeholder="أي ملاحظات إضافية..."></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeClientModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveClient()"><i class="fas fa-save"></i> حفظ العميل</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+  let clients = JSON.parse(localStorage.getItem('heg_clients')||'[]');
+  let editClientId = null;
+  function saveClients(){ localStorage.setItem('heg_clients', JSON.stringify(clients)); }
+
+  function updateKPIs(){
+    document.getElementById('k-total').textContent = clients.length;
+    document.getElementById('k-nat').textContent = new Set(clients.map(c=>c.nat).filter(Boolean)).size;
+    const now = new Date();
+    document.getElementById('k-new').textContent = clients.filter(c=>{
+      if(!c.date) return false;
+      const d=new Date(c.date);
+      return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();
+    }).length;
+  }
+
+  function renderClients(){
+    const q = document.getElementById('c-srch').value.trim().toLowerCase();
+    let list = q ? clients.filter(c=>
+      (c.name||'').toLowerCase().includes(q)||(c.phone||'').includes(q)||
+      (c.id||'').toLowerCase().includes(q)||(c.nat||'').includes(q)
+    ) : clients;
+    const tb = document.getElementById('clients-body');
+    if(!list.length){
+      tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:36px;color:var(--text-muted)"><i class="fas fa-search" style="font-size:24px;display:block;margin-bottom:8px;opacity:.25"></i>لا توجد نتائج</td></tr>';
+      return;
+    }
+    tb.innerHTML = list.map((c,i)=>\`
+      <tr>
+        <td style="color:var(--text-muted);font-size:11px">\${i+1}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,var(--teal-dark),var(--teal-mid));color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex-shrink:0">\${(c.name||'?').charAt(0)}</div>
+            <div><div style="font-weight:600">\${c.name}</div><div style="font-size:10px;color:var(--text-muted)">\${c.email||''}</div></div>
+          </div>
+        </td>
+        <td><div style="font-weight:500">\${c.phone||'—'}</div>\${c.phone2?\`<div style="font-size:10px;color:var(--text-muted)">\${c.phone2}</div>\`:''}</td>
+        <td style="color:var(--text-muted);font-size:12px">\${c.address||'—'}</td>
+        <td dir="ltr" style="color:var(--text-muted);font-size:12px">\${c.id||'—'}</td>
+        <td>\${c.nat?\`<span class="badge" style="background:#E5F3F5;color:var(--teal-dark)">\${c.nat}</span>\`:'—'}</td>
+        <td style="color:var(--text-muted);font-size:11px">\${c.date||'—'}</td>
+        <td style="color:var(--text-muted);font-size:11px;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="\${c.note||''}">\${c.note||'—'}</td>
+        <td>
+          <div style="display:flex;gap:3px">
+            <button class="btn btn-outline btn-sm" onclick="editClient(\${c.cid})" title="تعديل" style="color:var(--teal-dark);padding:4px 7px"><i class="fas fa-pen"></i></button>
+            <button onclick="sendWA(\${c.cid})" title="إرسال واتساب" style="background:#25D366;color:#fff;padding:4px 7px;border-radius:6px;border:none;cursor:pointer"><i class="fab fa-whatsapp"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="delClient(\${c.cid})" title="حذف" style="padding:4px 7px"><i class="fas fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>\`).join('');
+    updateKPIs();
+  }
+
+  function openClientModal(){
+    editClientId=null;
+    document.getElementById('client-modal-title').innerHTML='<i class="fas fa-user-plus" style="margin-left:6px;color:var(--teal-mid)"></i>إضافة عميل جديد';
+    ['cl-name','cl-phone','cl-phone2','cl-address','cl-id','cl-email','cl-note'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('cl-nat').value='';document.getElementById('cl-dob').value='';
+    document.getElementById('client-modal').classList.add('show');
+  }
+  function closeClientModal(){ document.getElementById('client-modal').classList.remove('show'); editClientId=null; }
+  document.getElementById('client-modal').addEventListener('click',function(e){if(e.target===this)closeClientModal();});
+
+  function saveClient(){
+    const name=document.getElementById('cl-name').value.trim();
+    const phone=document.getElementById('cl-phone').value.trim();
+    if(!name){document.getElementById('cl-name').focus();showToast('⚠️ الاسم مطلوب');return;}
+    if(!phone){document.getElementById('cl-phone').focus();showToast('⚠️ رقم الهاتف مطلوب');return;}
+    const obj={
+      cid:editClientId||Date.now(), name, phone,
+      phone2:document.getElementById('cl-phone2').value.trim(),
+      address:document.getElementById('cl-address').value.trim(),
+      id:document.getElementById('cl-id').value.trim(),
+      nat:document.getElementById('cl-nat').value,
+      email:document.getElementById('cl-email').value.trim(),
+      dob:document.getElementById('cl-dob').value,
+      note:document.getElementById('cl-note').value.trim(),
+      date:new Date().toISOString().split('T')[0]
+    };
+    if(editClientId){ const i=clients.findIndex(c=>c.cid===editClientId); if(i>=0){obj.date=clients[i].date;clients[i]=obj;} }
+    else clients.push(obj);
+    saveClients();closeClientModal();renderClients();updateKPIs();
+    showToast(editClientId?'✅ تم تعديل بيانات العميل':'✅ تمت إضافة العميل بنجاح');
+  }
+
+  function editClient(cid){
+    const c=clients.find(x=>x.cid===cid);if(!c)return;
+    editClientId=cid;
+    document.getElementById('client-modal-title').innerHTML='<i class="fas fa-user-edit" style="margin-left:6px;color:var(--gold)"></i>تعديل: '+c.name;
+    document.getElementById('cl-name').value=c.name||'';document.getElementById('cl-phone').value=c.phone||'';
+    document.getElementById('cl-phone2').value=c.phone2||'';document.getElementById('cl-address').value=c.address||'';
+    document.getElementById('cl-id').value=c.id||'';document.getElementById('cl-nat').value=c.nat||'';
+    document.getElementById('cl-email').value=c.email||'';document.getElementById('cl-dob').value=c.dob||'';
+    document.getElementById('cl-note').value=c.note||'';
+    document.getElementById('client-modal').classList.add('show');
+  }
+  function delClient(cid){
+    const c=clients.find(x=>x.cid===cid);
+    if(!confirm('حذف العميل: '+(c?c.name:'')+' ؟'))return;
+    clients=clients.filter(x=>x.cid!==cid);saveClients();renderClients();updateKPIs();showToast('🗑️ تم حذف العميل');
+  }
+  function sendWA(cid){
+    const c=clients.find(x=>x.cid===cid);if(!c)return;
+    const phone=c.phone.replace(/[^0-9]/g,'');
+    const msg=encodeURIComponent('مرحباً '+c.name+' 👋\\nنتشرف بخدمتكم في HEG للسياحة 🌍\\nهل تحتاج مساعدة في التخطيط لرحلتك القادمة؟');
+    window.open('https://wa.me/'+phone+'?text='+msg,'_blank');
+  }
+  function exportExcel(){
+    if(!clients.length){showToast('⚠️ لا يوجد عملاء للتصدير');return;}
+    const data=clients.map((c,i)=>({'#':i+1,'الاسم الكامل':c.name||'','رقم الهاتف':c.phone||'','هاتف بديل':c.phone2||'','العنوان':c.address||'','رقم الهوية':c.id||'','الجنسية':c.nat||'','البريد الإلكتروني':c.email||'','تاريخ الميلاد':c.dob||'','ملاحظات':c.note||'','تاريخ التسجيل':c.date||''}));
+    const ws=XLSX.utils.json_to_sheet(data);
+    ws['!cols']=[{wch:5},{wch:24},{wch:16},{wch:16},{wch:26},{wch:18},{wch:12},{wch:26},{wch:14},{wch:24},{wch:14}];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,ws,'عملاء HEG');
+    XLSX.writeFile(wb,'HEG_Clients_'+new Date().toISOString().split('T')[0]+'.xlsx');
+    showToast('📊 تم تصدير بيانات العملاء بنجاح');
+  }
+  renderClients();updateKPIs();
+  </script>
+  `
+  return c.html(layout('العملاء', 'clients', content))
+})
+
+// ======== INVOICES PAGE ========
+app.get('/invoices', (c) => {
+  const content = `
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-header-title">نظام الفواتير</div>
+      <div class="page-header-sub">إنشاء وطباعة وإدارة فواتير العملاء</div>
+    </div>
+    <i class="fas fa-file-invoice page-header-icon"></i>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 380px;gap:1.2rem;align-items:start" id="inv-layout">
+
+    <!-- RIGHT: INVOICES LIST -->
+    <div>
+      <div class="action-bar">
+        <div class="search-wrap">
+          <i class="fas fa-search"></i>
+          <input id="inv-srch" placeholder="بحث برقم الفاتورة أو اسم العميل..." oninput="renderInvoices()">
+        </div>
+        <button class="btn btn-primary" onclick="newInvoice()">
+          <i class="fas fa-plus"></i> فاتورة جديدة
+        </button>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <div style="overflow-x:auto">
+            <table>
+              <thead><tr>
+                <th>رقم الفاتورة</th>
+                <th>اسم العميل</th>
+                <th>الخدمة</th>
+                <th>المبلغ</th>
+                <th>طريقة الدفع</th>
+                <th>الحالة</th>
+                <th>التاريخ</th>
+                <th style="width:120px">إجراءات</th>
+              </tr></thead>
+              <tbody id="inv-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LEFT: INVOICE FORM + PREVIEW -->
+    <div style="position:sticky;top:80px">
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-edit" style="color:var(--teal-mid)"></i>
+          <span class="card-header-title" id="inv-form-title">فاتورة جديدة</span>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+
+          <!-- Company Logo Section -->
+          <div style="background:var(--bg-light);border-radius:8px;padding:10px;text-align:center;border:1px dashed var(--border)">
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:6px">شعار / اسم الشركة في الفاتورة</div>
+            <div id="inv-logo-preview" style="font-family:'Montserrat',sans-serif;font-size:18px;font-weight:800;color:var(--teal-dark)">HEG</div>
+            <div style="font-size:9px;color:var(--text-muted)">HOLIDAY TRAVEL SERVICES</div>
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('inv-logo-upload').click()" style="margin-top:6px">
+              <i class="fas fa-upload"></i> رفع شعار
+            </button>
+            <input type="file" id="inv-logo-upload" accept="image/*" style="display:none" onchange="loadLogo(this)">
+          </div>
+
+          <div class="field"><label>رقم الفاتورة</label><input id="inv-num" placeholder="INV-2026-001" dir="ltr"></div>
+          <div class="field">
+            <label>اسم العميل</label>
+            <select id="inv-client">
+              <option value="">— اختر من العملاء المسجلين —</option>
+            </select>
+          </div>
+          <div class="field"><label>أو اكتب الاسم يدوياً</label><input id="inv-client-manual" placeholder="اسم العميل"></div>
+          <div class="field"><label>رقم الهاتف</label><input id="inv-phone" placeholder="+968..." dir="ltr"></div>
+          <div class="field">
+            <label>الخدمة</label>
+            <select id="inv-service">
+              <option value="">— اختر الخدمة —</option>
+              <option>باقات سياحة داخلية</option>
+              <option>باقات سياحة خارجية</option>
+              <option>خدمة التأشيرات</option>
+              <option>حجوزات الفنادق</option>
+              <option>السياحة الدينية</option>
+              <option>سياحة الأعمال</option>
+              <option>تأجير الحافلات</option>
+              <option>برامج شهر العسل</option>
+              <option>أخرى</option>
+            </select>
+          </div>
+          <div class="field"><label>تفاصيل إضافية</label><input id="inv-detail" placeholder="وصف الخدمة أو الوجهة..."></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="field"><label>المبلغ (ر.ع)</label><input id="inv-amount" type="number" step="0.001" min="0" placeholder="0.000" oninput="calcTotal()"></div>
+            <div class="field"><label>الخصم (ر.ع)</label><input id="inv-disc" type="number" step="0.001" min="0" value="0" oninput="calcTotal()"></div>
+          </div>
+          <div style="background:var(--bg-light);border-radius:8px;padding:10px;display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px;color:var(--text-muted)">الإجمالي بعد الخصم:</span>
+            <span id="inv-total-display" style="font-size:18px;font-weight:700;color:var(--teal-dark)">0.000 ر.ع</span>
+          </div>
+          <div class="field">
+            <label>طريقة الدفع</label>
+            <select id="inv-pay">
+              <option>نقداً</option><option>بطاقة بنكية</option>
+              <option>تحويل بنكي</option><option>واتساب باي</option>
+              <option>آجل</option><option>دفعات</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>الحالة</label>
+            <select id="inv-status">
+              <option>مسدد</option><option>معلق</option><option>جزئي</option><option>ملغي</option>
+            </select>
+          </div>
+          <div class="field"><label>إجالي الحساب (تاريخ)</label><input id="inv-due" type="date"></div>
+          <div class="field"><label>ملاحظات الفاتورة</label><textarea id="inv-note" rows="2" placeholder="شكر وتقدير..."></textarea></div>
+
+          <div style="display:flex;gap:6px">
+            <button class="btn btn-primary" onclick="saveInvoice()" style="flex:1"><i class="fas fa-save"></i> حفظ</button>
+            <button class="btn btn-gold" onclick="printInvoice()" style="flex:1"><i class="fas fa-print"></i> طباعة</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PRINT TEMPLATE (hidden) -->
+  <div id="print-area" style="display:none"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+  let invoices = JSON.parse(localStorage.getItem('heg_invoices')||'[]');
+  let editInvId = null;
+  let logoDataUrl = localStorage.getItem('heg_inv_logo') || null;
+
+  function saveInvoices(){ localStorage.setItem('heg_invoices', JSON.stringify(invoices)); }
+
+  // Auto fill invoice number
+  function genInvNum(){
+    const n = invoices.length + 1;
+    return 'INV-' + new Date().getFullYear() + '-' + String(n).padStart(3,'0');
+  }
+
+  function newInvoice(){
+    editInvId = null;
+    document.getElementById('inv-form-title').textContent = 'فاتورة جديدة';
+    document.getElementById('inv-num').value = genInvNum();
+    document.getElementById('inv-client').value = '';
+    document.getElementById('inv-client-manual').value = '';
+    document.getElementById('inv-phone').value = '';
+    document.getElementById('inv-service').value = '';
+    document.getElementById('inv-detail').value = '';
+    document.getElementById('inv-amount').value = '';
+    document.getElementById('inv-disc').value = '0';
+    document.getElementById('inv-pay').value = 'نقداً';
+    document.getElementById('inv-status').value = 'مسدد';
+    document.getElementById('inv-due').value = new Date().toISOString().split('T')[0];
+    document.getElementById('inv-note').value = 'شكراً لثقتكم بـ HEG للسياحة 🌟';
+    document.getElementById('inv-total-display').textContent = '0.000 ر.ع';
+  }
+
+  function loadClients(){
+    const clients = JSON.parse(localStorage.getItem('heg_clients')||'[]');
+    const sel = document.getElementById('inv-client');
+    sel.innerHTML = '<option value="">— اختر من العملاء المسجلين —</option>' +
+      clients.map(c=>\`<option value="\${c.cid}">\${c.name} — \${c.phone}</option>\`).join('');
+    sel.onchange = function(){
+      const c = clients.find(x=>x.cid==this.value);
+      if(c){
+        document.getElementById('inv-client-manual').value = c.name;
+        document.getElementById('inv-phone').value = c.phone;
+      }
+    };
+  }
+
+  function calcTotal(){
+    const amt = parseFloat(document.getElementById('inv-amount').value)||0;
+    const disc = parseFloat(document.getElementById('inv-disc').value)||0;
+    const total = Math.max(0, amt - disc);
+    document.getElementById('inv-total-display').textContent = total.toFixed(3) + ' ر.ع';
+  }
+
+  function loadLogo(input){
+    if(!input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+      logoDataUrl = e.target.result;
+      localStorage.setItem('heg_inv_logo', logoDataUrl);
+      document.getElementById('inv-logo-preview').innerHTML = \`<img src="\${logoDataUrl}" style="max-height:60px;max-width:140px;object-fit:contain">\`;
+      showToast('✅ تم رفع الشعار');
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  function saveInvoice(){
+    const clientName = document.getElementById('inv-client-manual').value.trim() ||
+      (document.getElementById('inv-client').options[document.getElementById('inv-client').selectedIndex]?.text || '');
+    if(!clientName){ showToast('⚠️ اسم العميل مطلوب'); return; }
+    const amt = parseFloat(document.getElementById('inv-amount').value)||0;
+    const disc = parseFloat(document.getElementById('inv-disc').value)||0;
+    const obj = {
+      iid: editInvId || Date.now(),
+      num: document.getElementById('inv-num').value.trim() || genInvNum(),
+      client: clientName,
+      phone: document.getElementById('inv-phone').value.trim(),
+      service: document.getElementById('inv-service').value,
+      detail: document.getElementById('inv-detail').value.trim(),
+      amount: amt, disc,
+      total: Math.max(0, amt - disc),
+      pay: document.getElementById('inv-pay').value,
+      status: document.getElementById('inv-status').value,
+      due: document.getElementById('inv-due').value,
+      note: document.getElementById('inv-note').value.trim(),
+      date: new Date().toISOString().split('T')[0]
+    };
+    if(editInvId){ const i=invoices.findIndex(x=>x.iid===editInvId); if(i>=0){obj.date=invoices[i].date;invoices[i]=obj;} }
+    else invoices.unshift(obj);
+    saveInvoices(); renderInvoices(); newInvoice();
+    showToast(editInvId ? '✅ تم تعديل الفاتورة' : '✅ تم حفظ الفاتورة');
+  }
+
+  function editInvoice(iid){
+    const inv = invoices.find(x=>x.iid===iid); if(!inv) return;
+    editInvId = iid;
+    document.getElementById('inv-form-title').textContent = 'تعديل: ' + inv.num;
+    document.getElementById('inv-num').value = inv.num;
+    document.getElementById('inv-client-manual').value = inv.client;
+    document.getElementById('inv-phone').value = inv.phone||'';
+    document.getElementById('inv-service').value = inv.service||'';
+    document.getElementById('inv-detail').value = inv.detail||'';
+    document.getElementById('inv-amount').value = inv.amount;
+    document.getElementById('inv-disc').value = inv.disc||0;
+    document.getElementById('inv-pay').value = inv.pay;
+    document.getElementById('inv-status').value = inv.status;
+    document.getElementById('inv-due').value = inv.due||'';
+    document.getElementById('inv-note').value = inv.note||'';
+    calcTotal();
+    document.getElementById('inv-num').scrollIntoView({behavior:'smooth',block:'center'});
+  }
+
+  function delInvoice(iid){
+    const inv = invoices.find(x=>x.iid===iid);
+    if(!confirm('حذف الفاتورة: '+(inv?inv.num:'')+' ؟')) return;
+    invoices = invoices.filter(x=>x.iid!==iid);
+    saveInvoices(); renderInvoices(); showToast('🗑️ تم حذف الفاتورة');
+  }
+
+  function printInvoice(){
+    const clientName = document.getElementById('inv-client-manual').value.trim();
+    if(!clientName){ showToast('⚠️ أدخل بيانات الفاتورة أولاً'); return; }
+    const num = document.getElementById('inv-num').value || genInvNum();
+    const service = document.getElementById('inv-service').value;
+    const detail = document.getElementById('inv-detail').value;
+    const amt = parseFloat(document.getElementById('inv-amount').value)||0;
+    const disc = parseFloat(document.getElementById('inv-disc').value)||0;
+    const total = Math.max(0, amt - disc);
+    const pay = document.getElementById('inv-pay').value;
+    const status = document.getElementById('inv-status').value;
+    const due = document.getElementById('inv-due').value;
+    const note = document.getElementById('inv-note').value;
+    const phone = document.getElementById('inv-phone').value;
+    const logoHtml = logoDataUrl
+      ? \`<img src="\${logoDataUrl}" style="max-height:70px;max-width:180px;object-fit:contain">\`
+      : \`<div style="font-family:Montserrat,sans-serif;font-size:26px;font-weight:900;color:#1A5C6B;letter-spacing:2px">HEG</div>
+         <div style="font-size:10px;color:#3A8C9B;letter-spacing:1px">HOLIDAY TRAVEL SERVICES</div>\`;
+    const html = \`<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>فاتورة \${num}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:'Cairo',sans-serif;background:#fff;color:#163D47;font-size:13px}
+    .inv-wrap{max-width:780px;margin:0 auto;padding:30px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:16px;border-bottom:3px solid #1A5C6B}
+    .header-left{text-align:right}
+    .header-right{text-align:left}
+    .inv-title{font-size:28px;font-weight:800;color:#1A5C6B;font-family:'Montserrat',sans-serif}
+    .inv-num{font-size:14px;color:#3A8C9B;margin-top:2px}
+    .inv-date{font-size:11px;color:#6B8C94}
+    .gold-line{height:4px;background:linear-gradient(to right,#D4AB4B,#E8C96A,#D4AB4B);border-radius:2px;margin-bottom:20px}
+    .section-title{font-size:11px;font-weight:700;color:#6B8C94;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;border-bottom:1px solid #E8F2F4;padding-bottom:4px}
+    .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+    .info-box{background:#F4F8F9;border-radius:8px;padding:12px 14px}
+    .info-label{font-size:10px;color:#6B8C94;margin-bottom:2px}
+    .info-value{font-size:13px;font-weight:600;color:#163D47}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    thead th{background:#1A5C6B;color:#fff;padding:9px 12px;text-align:right;font-size:12px;font-weight:600}
+    tbody td{padding:9px 12px;border-bottom:1px solid #E8F2F4;font-size:12px}
+    tbody tr:last-child td{border-bottom:none}
+    tbody tr:nth-child(even) td{background:#F9FBFC}
+    .total-box{background:linear-gradient(135deg,#1A5C6B,#3A8C9B);color:#fff;border-radius:10px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .total-label{font-size:13px;opacity:.85}
+    .total-value{font-size:24px;font-weight:800;font-family:'Montserrat',sans-serif}
+    .gold-badge{display:inline-block;background:#D4AB4B;color:#163D47;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;margin-right:6px}
+    .footer{margin-top:24px;text-align:center;padding-top:16px;border-top:1px solid #D0E4E8;color:#6B8C94;font-size:11px}
+    .note-box{background:#FAEEDA;border-right:4px solid #D4AB4B;padding:10px 14px;border-radius:0 8px 8px 0;margin-bottom:16px;font-size:12px;color:#412402}
+    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style>
+</head>
+<body>
+<div class="inv-wrap">
+  <div class="header">
+    <div class="header-left">\${logoHtml}</div>
+    <div class="header-right">
+      <div class="inv-title">فـاتـورة</div>
+      <div class="inv-num"># \${num}</div>
+      <div class="inv-date">التاريخ: \${new Date().toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'})}</div>
+      \${due?\`<div class="inv-date">إجالي الحساب: \${new Date(due).toLocaleDateString('ar-EG',{year:'numeric',month:'long',day:'numeric'})}</div>\`:''}
+    </div>
+  </div>
+  <div class="gold-line"></div>
+  <div class="info-grid">
+    <div class="info-box">
+      <div class="section-title">بيانات العميل</div>
+      <div class="info-label">الاسم</div><div class="info-value">\${clientName}</div>
+      \${phone?\`<div class="info-label" style="margin-top:6px">رقم الهاتف</div><div class="info-value" dir="ltr">\${phone}</div>\`:''}
+    </div>
+    <div class="info-box">
+      <div class="section-title">تفاصيل الدفع</div>
+      <div class="info-label">طريقة الدفع</div><div class="info-value">\${pay}</div>
+      <div class="info-label" style="margin-top:6px">الحالة</div>
+      <div><span class="gold-badge">\${status}</span></div>
+    </div>
+  </div>
+  <div class="section-title">تفاصيل الخدمة</div>
+  <table>
+    <thead><tr><th style="width:50%">الخدمة</th><th>التفاصيل</th><th style="width:80px">الخصم</th><th style="width:100px">المبلغ</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>\${service||'خدمة سياحية'}</b></td>
+        <td>\${detail||'—'}</td>
+        <td style="color:#A32D2D">\${disc>0?disc.toFixed(3)+' ر.ع':'—'}</td>
+        <td style="color:#0F6E56;font-weight:700">\${amt.toFixed(3)} ر.ع</td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="total-box">
+    <span class="total-label">الإجمالي المستحق</span>
+    <span class="total-value">\${total.toFixed(3)} ر.ع</span>
+  </div>
+  \${note?\`<div class="note-box"><strong>ملاحظة:</strong> \${note}</div>\`:''}
+  <div class="footer">
+    <strong>HEG Holiday Travel Services</strong> &nbsp;|&nbsp;
+    شكراً لثقتكم بنا 🌟 &nbsp;|&nbsp;
+    هذه الفاتورة صادرة إلكترونياً وصالحة بدون توقيع أو ختم
+  </div>
+</div>
+<script>window.onload=function(){window.print()}<\/script>
+</body></html>\`;
+    const w = window.open('','_blank','width=900,height=700');
+    w.document.write(html);
+    w.document.close();
+  }
+
+  function renderInvoices(){
+    const q = document.getElementById('inv-srch').value.trim().toLowerCase();
+    let list = q ? invoices.filter(i=>(i.num||'').toLowerCase().includes(q)||(i.client||'').toLowerCase().includes(q)) : invoices;
+    const tb = document.getElementById('inv-body');
+    if(!list.length){
+      tb.innerHTML='<tr><td colspan="8" style="text-align:center;padding:36px;color:var(--text-muted)"><i class="fas fa-file-invoice" style="font-size:26px;display:block;margin-bottom:8px;opacity:.25"></i>لا توجد فواتير بعد</td></tr>';
+      return;
+    }
+    const statusColor={'مسدد':'#E1F5EE','معلق':'#FAEEDA','جزئي':'#EEEDFE','ملغي':'#FCEBEB'};
+    const statusText={'مسدد':'#085041','معلق':'#412402','جزئي':'#26215C','ملغي':'#791F1F'};
+    tb.innerHTML = list.map(inv=>\`
+      <tr>
+        <td><span style="font-family:'Montserrat',sans-serif;font-size:11px;font-weight:600;color:var(--teal-dark)">\${inv.num}</span></td>
+        <td style="font-weight:600">\${inv.client}</td>
+        <td style="color:var(--text-muted);font-size:11px">\${inv.service||'—'}</td>
+        <td style="font-weight:700;color:var(--teal-dark)">\${inv.total.toFixed(3)} ر.ع</td>
+        <td style="font-size:11px">\${inv.pay}</td>
+        <td><span style="padding:2px 8px;border-radius:5px;font-size:10px;font-weight:600;background:\${statusColor[inv.status]||'#eee'};color:\${statusText[inv.status]||'#333'}">\${inv.status}</span></td>
+        <td style="color:var(--text-muted);font-size:11px">\${inv.date||'—'}</td>
+        <td>
+          <div style="display:flex;gap:3px">
+            <button class="btn btn-outline btn-sm" onclick="editInvoice(\${inv.iid})" title="تعديل" style="color:var(--teal-dark);padding:4px 7px"><i class="fas fa-pen"></i></button>
+            <button class="btn btn-gold btn-sm" onclick="printSaved(\${inv.iid})" title="طباعة" style="padding:4px 7px"><i class="fas fa-print"></i></button>
+            <button class="btn btn-danger btn-sm" onclick="delInvoice(\${inv.iid})" title="حذف" style="padding:4px 7px"><i class="fas fa-trash"></i></button>
+          </div>
+        </td>
+      </tr>\`).join('');
+  }
+
+  function printSaved(iid){
+    const inv = invoices.find(x=>x.iid===iid); if(!inv) return;
+    document.getElementById('inv-client-manual').value = inv.client;
+    document.getElementById('inv-num').value = inv.num;
+    document.getElementById('inv-phone').value = inv.phone||'';
+    document.getElementById('inv-service').value = inv.service||'';
+    document.getElementById('inv-detail').value = inv.detail||'';
+    document.getElementById('inv-amount').value = inv.amount;
+    document.getElementById('inv-disc').value = inv.disc||0;
+    document.getElementById('inv-pay').value = inv.pay;
+    document.getElementById('inv-status').value = inv.status;
+    document.getElementById('inv-due').value = inv.due||'';
+    document.getElementById('inv-note').value = inv.note||'';
+    setTimeout(printInvoice, 100);
+  }
+
+  // Load logo if saved
+  if(logoDataUrl){
+    document.getElementById('inv-logo-preview').innerHTML = \`<img src="\${logoDataUrl}" style="max-height:60px;max-width:140px;object-fit:contain">\`;
+  }
+
+  loadClients();
+  newInvoice();
+  renderInvoices();
+  </script>
+  `
+  return c.html(layout('الفواتير', 'invoices', content))
+})
 
 // ======== SERVICES PAGE ========
 app.get('/services', (c) => {
@@ -1133,6 +1792,607 @@ app.get('/finance', (c) => {
   </script>
   `
   return c.html(layout('المالية', 'finance', content))
+})
+
+// ======== WHATSAPP PAGE ========
+app.get('/whatsapp', (c) => {
+  const content = `
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-header-title">نظام إرسال واتساب</div>
+      <div class="page-header-sub">إرسال رسائل واتساب لعميل واحد أو مجموعة من العملاء</div>
+    </div>
+    <i class="fab fa-whatsapp page-header-icon"></i>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;align-items:start">
+
+    <!-- RIGHT: Message Composer -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fab fa-whatsapp" style="color:#25D366;font-size:18px"></i>
+        <span class="card-header-title">إعداد الرسالة</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+
+        <!-- Send Mode -->
+        <div style="display:flex;gap:6px">
+          <button class="filter-btn on" id="mode-single" onclick="setMode('single')">
+            <i class="fas fa-user"></i> عميل واحد
+          </button>
+          <button class="filter-btn" id="mode-multi" onclick="setMode('multi')">
+            <i class="fas fa-users"></i> مجموعة عملاء
+          </button>
+          <button class="filter-btn" id="mode-manual" onclick="setMode('manual')">
+            <i class="fas fa-keyboard"></i> إدخال يدوي
+          </button>
+        </div>
+
+        <!-- Single client -->
+        <div id="single-section">
+          <div class="field">
+            <label>اختر العميل</label>
+            <select id="wa-client-sel">
+              <option value="">— اختر عميلاً —</option>
+            </select>
+          </div>
+          <div style="padding:10px;background:var(--bg-light);border-radius:8px;font-size:12px;color:var(--text-muted)" id="client-preview" style="display:none"></div>
+        </div>
+
+        <!-- Multi select -->
+        <div id="multi-section" style="display:none">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">
+            اختر العملاء (يمكن اختيار أكثر من واحد)
+          </div>
+          <div id="clients-checklist" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:4px"></div>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn btn-outline btn-sm" onclick="selectAll()"><i class="fas fa-check-double"></i> تحديد الكل</button>
+            <button class="btn btn-outline btn-sm" onclick="clearAll()"><i class="fas fa-times"></i> إلغاء الكل</button>
+          </div>
+          <div style="font-size:11px;color:var(--teal-dark);margin-top:4px" id="selected-count">0 عميل محدد</div>
+        </div>
+
+        <!-- Manual -->
+        <div id="manual-section" style="display:none">
+          <div class="field">
+            <label>أرقام الهاتف (سطر لكل رقم)</label>
+            <textarea id="manual-phones" rows="4" placeholder="+96891234567&#10;+96891234568&#10;+96891234569" dir="ltr" style="font-family:monospace;font-size:12px"></textarea>
+          </div>
+        </div>
+
+        <!-- Message Templates -->
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;font-weight:600">قوالب الرسائل الجاهزة</div>
+          <div style="display:flex;flex-wrap:wrap;gap:4px" id="templates-bar">
+            <button class="filter-btn" onclick="useTemplate('welcome')">ترحيب</button>
+            <button class="filter-btn" onclick="useTemplate('offer')">عرض خاص</button>
+            <button class="filter-btn" onclick="useTemplate('eid')">عيد مبارك</button>
+            <button class="filter-btn" onclick="useTemplate('reminder')">تذكير</button>
+            <button class="filter-btn" onclick="useTemplate('confirm')">تأكيد حجز</button>
+            <button class="filter-btn" onclick="useTemplate('followup')">متابعة</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>نص الرسالة *</label>
+          <textarea id="wa-message" rows="6" placeholder="اكتب رسالتك هنا... يمكنك استخدام {name} لإضافة اسم العميل تلقائياً"
+            style="font-size:13px;line-height:1.7"></textarea>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span id="char-count" style="font-size:11px;color:var(--text-muted)">0 حرف</span>
+          <span style="font-size:11px;color:var(--text-muted)">يمكن استخدام {name} لاسم العميل</span>
+        </div>
+
+        <button class="btn" onclick="sendMessages()" 
+          style="background:linear-gradient(135deg,#128C7E,#25D366);color:#fff;padding:12px;font-size:14px;font-weight:600;border-radius:10px">
+          <i class="fab fa-whatsapp" style="font-size:16px"></i> إرسال عبر واتساب
+        </button>
+
+        <div style="background:#E1F5EE;border-radius:8px;padding:10px 12px;font-size:11px;color:#085041;border-right:3px solid #25D366">
+          <i class="fas fa-info-circle" style="margin-left:4px"></i>
+          سيتم فتح واتساب ويب لكل رقم مع الرسالة. إذا كان لديك واتساب بيزنس يمكنك الإرسال المباشر.
+        </div>
+      </div>
+    </div>
+
+    <!-- LEFT: History + Stats -->
+    <div style="display:flex;flex-direction:column;gap:1rem">
+      <!-- Stats -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:#DCF8C6;color:#128C7E"><i class="fab fa-whatsapp"></i></div>
+          <div class="kpi-info"><div class="kpi-label">رسائل أرسلت</div><div class="kpi-value" id="wa-sent-count" style="color:#128C7E">0</div></div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:#E5F3F5;color:var(--teal-dark)"><i class="fas fa-users"></i></div>
+          <div class="kpi-info"><div class="kpi-label">عملاء متاحون</div><div class="kpi-value" id="wa-clients-count">0</div></div>
+        </div>
+      </div>
+
+      <!-- Send History -->
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-history" style="color:var(--text-muted)"></i>
+          <span class="card-header-title">سجل الإرسال</span>
+          <button class="btn btn-outline btn-sm" onclick="clearHistory()" style="margin-right:auto">
+            <i class="fas fa-trash"></i> مسح
+          </button>
+        </div>
+        <div class="card-body" style="padding:0;max-height:400px;overflow-y:auto">
+          <div id="wa-history">
+            <div style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px">
+              <i class="fab fa-whatsapp" style="font-size:24px;display:block;margin-bottom:8px;opacity:.25;color:#25D366"></i>
+              لم يتم إرسال أي رسائل بعد
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Message -->
+      <div class="card">
+        <div class="card-header">
+          <i class="fas fa-bolt" style="color:var(--gold)"></i>
+          <span class="card-header-title">إرسال سريع لعميل</span>
+        </div>
+        <div class="card-body" style="display:flex;gap:8px;align-items:flex-end">
+          <div class="field" style="flex:1;margin:0">
+            <label>رقم الهاتف</label>
+            <input id="quick-phone" placeholder="+96891234567" dir="ltr">
+          </div>
+          <button class="btn" onclick="quickSend()" 
+            style="background:#25D366;color:#fff;white-space:nowrap;flex-shrink:0">
+            <i class="fab fa-whatsapp"></i> إرسال
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  let waMode = 'single';
+  let waHistory = JSON.parse(localStorage.getItem('heg_wa_history')||'[]');
+  let clients = JSON.parse(localStorage.getItem('heg_clients')||'[]');
+
+  const templates = {
+    welcome: 'مرحباً {name} 👋\\nنتشرف بخدمتكم في *HEG للسياحة* 🌍✈️\\nنقدم أفضل الباقات السياحية بأسعار مميزة.\\nهل تودون الاستفسار عن رحلتكم القادمة؟ نحن في خدمتكم! 😊',
+    offer: 'عرض خاص لعميلنا الكريم {name} 🌟\\n━━━━━━━━━━━━━━━━\\n🏖️ باقات صيفية حصرية\\n✈️ أسعار لا تُقاوم\\n🛡️ تأمين سفر شامل\\n━━━━━━━━━━━━━━━━\\nتواصل معنا الآن لحجز مكانك! ⬇️',
+    eid: '🌙 عيد مبارك وكل عام وأنتم بخير {name}\\nبمناسبة العيد المبارك، نقدم لكم عروضاً استثنائية على رحلات العيد.\\nتمنياتنا لكم بعيد سعيد وإجازة مميزة!\\n— فريق *HEG للسياحة* 🌟',
+    reminder: 'تذكير ودي لعميلنا {name} 👋\\nنذكركم بموعد رحلتكم القادمة مع HEG.\\nللاستفسار عن التفاصيل أو أي تعديلات، تواصلوا معنا على الفور.\\nنتمنى لكم رحلة ممتعة! ✈️🌍',
+    confirm: 'تأكيد الحجز ✅\\nعزيزنا {name}، تم تأكيد حجزكم بنجاح.\\nسيتم إرسال تفاصيل الرحلة كاملة قريباً.\\nشكراً لثقتكم بـ *HEG للسياحة* 🙏',
+    followup: 'أهلاً {name} 😊\\nنأمل أنكم بخير وأن رحلتكم كانت ممتعة!\\nيسعدنا معرفة رأيكم في الخدمة، وهل أعجبتكم تجربة السفر معنا؟\\nآراؤكم تهمنا 💙 *HEG للسياحة*'
+  };
+
+  function useTemplate(t){
+    document.getElementById('wa-message').value = templates[t]||'';
+    updateCharCount();
+  }
+
+  document.getElementById('wa-message').addEventListener('input', updateCharCount);
+  function updateCharCount(){
+    const len = document.getElementById('wa-message').value.length;
+    document.getElementById('char-count').textContent = len + ' حرف';
+  }
+
+  function setMode(m){
+    waMode = m;
+    ['single','multi','manual'].forEach(x=>{
+      document.getElementById('mode-'+x).className = 'filter-btn' + (x===m?' on':'');
+      document.getElementById(x+'-section').style.display = x===m?'block':'none';
+    });
+  }
+
+  function loadClientsList(){
+    const sel = document.getElementById('wa-client-sel');
+    sel.innerHTML = '<option value="">— اختر عميلاً —</option>' +
+      clients.map(c=>\`<option value="\${c.cid}">\${c.name} (\${c.phone})</option>\`).join('');
+    sel.onchange = function(){
+      const c = clients.find(x=>x.cid==this.value);
+      const prev = document.getElementById('client-preview');
+      if(c){
+        prev.style.display='block';
+        prev.innerHTML=\`<i class="fas fa-user" style="margin-left:4px;color:var(--teal-mid)"></i><b>\${c.name}</b> — \${c.phone}\${c.nat?' — '+c.nat:''}\`;
+      } else { prev.style.display='none'; }
+    };
+    const cl = document.getElementById('clients-checklist');
+    cl.innerHTML = clients.length ? clients.map(c=>\`
+      <label style="display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;font-size:12px" 
+        onmouseover="this.style.background='var(--bg-light)'" onmouseout="this.style.background=''">
+        <input type="checkbox" class="client-chk" value="\${c.cid}" style="width:14px;height:14px" onchange="updateSelectedCount()">
+        <div style="width:28px;height:28px;border-radius:50%;background:var(--teal-dark);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0">\${c.name.charAt(0)}</div>
+        <div><div style="font-weight:600">\${c.name}</div><div style="color:var(--text-muted);font-size:10px">\${c.phone}</div></div>
+      </label>\`).join('') :
+      '<div style="text-align:center;padding:16px;color:var(--text-muted);font-size:12px">لا يوجد عملاء مسجلين</div>';
+    document.getElementById('wa-clients-count').textContent = clients.length;
+  }
+
+  function selectAll(){ document.querySelectorAll('.client-chk').forEach(c=>c.checked=true); updateSelectedCount(); }
+  function clearAll(){ document.querySelectorAll('.client-chk').forEach(c=>c.checked=false); updateSelectedCount(); }
+  function updateSelectedCount(){
+    const n = document.querySelectorAll('.client-chk:checked').length;
+    document.getElementById('selected-count').textContent = n + ' عميل محدد';
+  }
+
+  function getPhoneAndName(){
+    if(waMode==='single'){
+      const cid = document.getElementById('wa-client-sel').value;
+      if(!cid) return null;
+      const c = clients.find(x=>x.cid==cid);
+      return c ? [{phone:c.phone, name:c.name}] : null;
+    }
+    if(waMode==='multi'){
+      const checked = document.querySelectorAll('.client-chk:checked');
+      if(!checked.length) return null;
+      return Array.from(checked).map(cb=>{
+        const c = clients.find(x=>x.cid==cb.value);
+        return c ? {phone:c.phone, name:c.name} : null;
+      }).filter(Boolean);
+    }
+    if(waMode==='manual'){
+      const phones = document.getElementById('manual-phones').value.trim().split(/\\n/).map(p=>p.trim()).filter(Boolean);
+      if(!phones.length) return null;
+      return phones.map(p=>({phone:p, name:''}));
+    }
+    return null;
+  }
+
+  function sendMessages(){
+    const targets = getPhoneAndName();
+    if(!targets || !targets.length){ showToast('⚠️ اختر عميلاً أو أدخل رقماً'); return; }
+    const msgTemplate = document.getElementById('wa-message').value.trim();
+    if(!msgTemplate){ showToast('⚠️ اكتب نص الرسالة'); return; }
+    targets.forEach((t, idx) => {
+      const msg = msgTemplate.replace(/\\{name\\}/g, t.name||'');
+      const phone = t.phone.replace(/[^0-9]/g,'');
+      const url = 'https://wa.me/'+phone+'?text='+encodeURIComponent(msg);
+      setTimeout(()=>window.open(url,'_blank'), idx * 800);
+    });
+    const entry = {
+      id: Date.now(),
+      targets: targets.map(t=>t.name||t.phone).join('، '),
+      count: targets.length,
+      msg: msgTemplate.substring(0,60)+'...',
+      time: new Date().toLocaleString('ar-EG')
+    };
+    waHistory.unshift(entry);
+    if(waHistory.length>50) waHistory=waHistory.slice(0,50);
+    localStorage.setItem('heg_wa_history', JSON.stringify(waHistory));
+    document.getElementById('wa-sent-count').textContent = waHistory.reduce((s,h)=>s+h.count, 0);
+    renderHistory();
+    showToast(\`📱 جاري فتح واتساب لـ \${targets.length} عميل...\`);
+  }
+
+  function quickSend(){
+    const p = document.getElementById('quick-phone').value.trim();
+    if(!p){ showToast('⚠️ أدخل رقم الهاتف'); return; }
+    const phone = p.replace(/[^0-9]/g,'');
+    const msg = encodeURIComponent('مرحباً 👋\\nنتشرف بخدمتكم في *HEG للسياحة* 🌍✈️');
+    window.open('https://wa.me/'+phone+'?text='+msg,'_blank');
+    showToast('📱 جاري فتح واتساب...');
+  }
+
+  function renderHistory(){
+    const h = document.getElementById('wa-history');
+    if(!waHistory.length){
+      h.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-muted);font-size:12px"><i class="fab fa-whatsapp" style="font-size:24px;display:block;margin-bottom:8px;opacity:.25;color:#25D366"></i>لم يتم إرسال أي رسائل بعد</div>';
+      return;
+    }
+    h.innerHTML = waHistory.map(e=>\`
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-bottom:1px solid var(--border-light)">
+        <div style="width:32px;height:32px;border-radius:50%;background:#DCF8C6;color:#128C7E;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="fab fa-whatsapp"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600">\${e.targets}</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">\${e.msg}</div>
+          <div style="display:flex;justify-content:space-between;margin-top:3px">
+            <span style="font-size:10px;background:#DCF8C6;color:#128C7E;padding:1px 6px;border-radius:4px">\${e.count} رسالة</span>
+            <span style="font-size:10px;color:var(--text-muted)">\${e.time}</span>
+          </div>
+        </div>
+      </div>\`).join('');
+    document.getElementById('wa-sent-count').textContent = waHistory.reduce((s,h)=>s+h.count, 0);
+  }
+
+  function clearHistory(){
+    if(!confirm('مسح سجل الإرسال؟')) return;
+    waHistory=[];localStorage.removeItem('heg_wa_history');renderHistory();showToast('🗑️ تم مسح السجل');
+  }
+
+  loadClientsList();
+  renderHistory();
+  </script>
+  `
+  return c.html(layout('واتساب', 'whatsapp', content))
+})
+
+// ======== SITE MANAGEMENT PAGE ========
+app.get('/site', (c) => {
+  const content = `
+  <div class="page-header">
+    <div class="page-header-left">
+      <div class="page-header-title">إدارة الموقع والهوية البصرية</div>
+      <div class="page-header-sub">تحكم كامل في مظهر ومحتوى موقع HEG</div>
+    </div>
+    <i class="fas fa-globe page-header-icon"></i>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.2rem">
+
+    <!-- Logo & Identity -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-paint-brush" style="color:var(--gold)"></i>
+        <span class="card-header-title">الشعار والهوية البصرية</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:14px">
+        <!-- Logo upload -->
+        <div>
+          <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:8px">الشعار الرسمي للشركة</div>
+          <div id="logo-preview-box" style="width:100%;height:100px;border:2px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--bg-light);cursor:pointer;transition:.2s" onclick="document.getElementById('logo-upload').click()" onmouseover="this.style.borderColor='var(--teal-mid)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div id="logo-inner" style="text-align:center">
+              <i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-muted);display:block;margin-bottom:6px"></i>
+              <span style="font-size:12px;color:var(--text-muted)">اضغط لرفع الشعار</span>
+            </div>
+          </div>
+          <input type="file" id="logo-upload" accept="image/*" style="display:none" onchange="uploadLogo(this)">
+          <div style="display:flex;gap:6px;margin-top:8px">
+            <button class="btn btn-outline btn-sm" onclick="document.getElementById('logo-upload').click()"><i class="fas fa-upload"></i> رفع صورة</button>
+            <button class="btn btn-danger btn-sm" onclick="removeLogo()"><i class="fas fa-trash"></i> حذف الشعار</button>
+          </div>
+        </div>
+
+        <!-- Company Info -->
+        <div style="border-top:1px solid var(--border-light);padding-top:14px">
+          <div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:10px">معلومات الشركة</div>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="field"><label>اسم الشركة</label><input id="site-name" value="HEG Holiday Travel Services"></div>
+            <div class="field"><label>الشعار النصي (Tagline)</label><input id="site-tagline" value="وجهتك السياحية الأولى في سلطنة عُمان"></div>
+            <div class="field"><label>البريد الإلكتروني</label><input id="site-email" value="info@hegtravel.com" dir="ltr"></div>
+            <div class="field"><label>رقم الهاتف</label><input id="site-phone" value="+968 XXXX XXXX" dir="ltr"></div>
+            <div class="field"><label>الموقع الإلكتروني</label><input id="site-web" value="www.hegtravel.com" dir="ltr"></div>
+            <div class="field"><label>العنوان</label><input id="site-address" value="مسقط، سلطنة عُمان"></div>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="saveSiteInfo()"><i class="fas fa-save"></i> حفظ المعلومات</button>
+      </div>
+    </div>
+
+    <!-- Homepage Banners -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-images" style="color:var(--teal-mid)"></i>
+        <span class="card-header-title">صور الواجهة والبانرات</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:12px">
+        <div style="font-size:11px;color:var(--text-muted)">إضافة صور للصفحة الرئيسية أو البانرات الترويجية</div>
+
+        <!-- Upload area -->
+        <div id="banner-upload-area" style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg-light)" 
+          onclick="document.getElementById('banner-upload').click()"
+          onmouseover="this.style.borderColor='var(--teal-mid)'" 
+          onmouseout="this.style.borderColor='var(--border)'">
+          <i class="fas fa-photo-video" style="font-size:28px;color:var(--text-muted);display:block;margin-bottom:8px"></i>
+          <div style="font-size:13px;font-weight:600;color:var(--text-mid)">اضغط أو اسحب الصور هنا</div>
+          <div style="font-size:11px;color:var(--text-muted);margin-top:4px">JPG, PNG, WebP — حتى 5MB لكل صورة</div>
+        </div>
+        <input type="file" id="banner-upload" accept="image/*" multiple style="display:none" onchange="uploadBanners(this)">
+
+        <!-- Gallery -->
+        <div id="banners-grid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px"></div>
+
+        <button class="btn btn-outline btn-sm" onclick="document.getElementById('banner-upload').click()" style="align-self:flex-start">
+          <i class="fas fa-plus"></i> إضافة صور
+        </button>
+      </div>
+    </div>
+
+    <!-- Colors & Theme -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-palette" style="color:var(--teal-mid)"></i>
+        <span class="card-header-title">الألوان والثيم</span>
+      </div>
+      <div class="card-body">
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">ألوان هوية HEG الرسمية</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg-light);border-radius:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:8px;background:#1A5C6B;box-shadow:0 2px 6px rgba(0,0,0,.15)"></div>
+              <div><div style="font-size:12px;font-weight:600">Primary Teal Dark</div><div style="font-size:10px;color:var(--text-muted)">#1A5C6B</div></div>
+            </div>
+            <input type="color" value="#1A5C6B" onchange="updateColor('--teal-dark',this.value)" style="width:36px;height:36px;border:none;cursor:pointer;border-radius:6px">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg-light);border-radius:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:8px;background:#3A8C9B;box-shadow:0 2px 6px rgba(0,0,0,.15)"></div>
+              <div><div style="font-size:12px;font-weight:600">Primary Teal Light</div><div style="font-size:10px;color:var(--text-muted)">#3A8C9B</div></div>
+            </div>
+            <input type="color" value="#3A8C9B" onchange="updateColor('--teal-mid',this.value)" style="width:36px;height:36px;border:none;cursor:pointer;border-radius:6px">
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:var(--bg-light);border-radius:8px">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:36px;height:36px;border-radius:8px;background:#D4AB4B;box-shadow:0 2px 6px rgba(0,0,0,.15)"></div>
+              <div><div style="font-size:12px;font-weight:600">Accent Gold</div><div style="font-size:10px;color:var(--text-muted)">#D4AB4B</div></div>
+            </div>
+            <input type="color" value="#D4AB4B" onchange="updateColor('--gold',this.value)" style="width:36px;height;36px;border:none;cursor:pointer;border-radius:6px">
+          </div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="resetColors()" style="margin-top:12px">
+          <i class="fas fa-undo"></i> استعادة الألوان الأصلية
+        </button>
+      </div>
+    </div>
+
+    <!-- Social Media Links -->
+    <div class="card">
+      <div class="card-header">
+        <i class="fas fa-share-alt" style="color:var(--teal-mid)"></i>
+        <span class="card-header-title">روابط التواصل الاجتماعي</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:#E4405F;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0"><i class="fab fa-instagram"></i></div>
+          <input id="social-ig" placeholder="https://instagram.com/hegtravel" dir="ltr" style="flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;background:var(--bg-card);color:var(--text-dark)">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:#25D366;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0"><i class="fab fa-whatsapp"></i></div>
+          <input id="social-wa" placeholder="+968XXXXXXXX" dir="ltr" style="flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;background:var(--bg-card);color:var(--text-dark)">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:#1877F2;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0"><i class="fab fa-facebook"></i></div>
+          <input id="social-fb" placeholder="https://facebook.com/hegtravel" dir="ltr" style="flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;background:var(--bg-card);color:var(--text-dark)">
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:8px;background:#000;display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;flex-shrink:0"><i class="fab fa-tiktok"></i></div>
+          <input id="social-tt" placeholder="https://tiktok.com/@hegtravel" dir="ltr" style="flex:1;padding:7px 10px;border-radius:6px;border:1px solid var(--border);font-size:12px;background:var(--bg-card);color:var(--text-dark)">
+        </div>
+        <button class="btn btn-primary" onclick="saveSocial()"><i class="fas fa-save"></i> حفظ الروابط</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+  // Load saved data
+  function loadSiteData(){
+    const data = JSON.parse(localStorage.getItem('heg_site_data')||'{}');
+    if(data.name) document.getElementById('site-name').value = data.name;
+    if(data.tagline) document.getElementById('site-tagline').value = data.tagline;
+    if(data.email) document.getElementById('site-email').value = data.email;
+    if(data.phone) document.getElementById('site-phone').value = data.phone;
+    if(data.web) document.getElementById('site-web').value = data.web;
+    if(data.address) document.getElementById('site-address').value = data.address;
+    const social = JSON.parse(localStorage.getItem('heg_social')||'{}');
+    if(social.ig) document.getElementById('social-ig').value = social.ig;
+    if(social.wa) document.getElementById('social-wa').value = social.wa;
+    if(social.fb) document.getElementById('social-fb').value = social.fb;
+    if(social.tt) document.getElementById('social-tt').value = social.tt;
+    const logo = localStorage.getItem('heg_site_logo');
+    if(logo) showLogo(logo);
+    loadBanners();
+  }
+
+  function saveSiteInfo(){
+    const data = {
+      name: document.getElementById('site-name').value,
+      tagline: document.getElementById('site-tagline').value,
+      email: document.getElementById('site-email').value,
+      phone: document.getElementById('site-phone').value,
+      web: document.getElementById('site-web').value,
+      address: document.getElementById('site-address').value
+    };
+    localStorage.setItem('heg_site_data', JSON.stringify(data));
+    showToast('✅ تم حفظ معلومات الشركة');
+  }
+
+  function saveSocial(){
+    const social = {
+      ig: document.getElementById('social-ig').value,
+      wa: document.getElementById('social-wa').value,
+      fb: document.getElementById('social-fb').value,
+      tt: document.getElementById('social-tt').value
+    };
+    localStorage.setItem('heg_social', JSON.stringify(social));
+    showToast('✅ تم حفظ روابط التواصل');
+  }
+
+  function uploadLogo(input){
+    if(!input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = function(e){
+      localStorage.setItem('heg_site_logo', e.target.result);
+      showLogo(e.target.result);
+      showToast('✅ تم رفع الشعار بنجاح');
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+
+  function showLogo(src){
+    document.getElementById('logo-inner').innerHTML =
+      \`<img src="\${src}" style="max-height:80px;max-width:200px;object-fit:contain">\`;
+  }
+
+  function removeLogo(){
+    if(!confirm('حذف الشعار الحالي؟')) return;
+    localStorage.removeItem('heg_site_logo');
+    document.getElementById('logo-inner').innerHTML =
+      \`<i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-muted);display:block;margin-bottom:6px"></i>
+       <span style="font-size:12px;color:var(--text-muted)">اضغط لرفع الشعار</span>\`;
+    showToast('🗑️ تم حذف الشعار');
+  }
+
+  function uploadBanners(input){
+    const files = Array.from(input.files);
+    let banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
+    let loaded = 0;
+    files.forEach(file=>{
+      if(file.size > 5*1024*1024){ showToast('⚠️ حجم الصورة أكبر من 5MB'); return; }
+      const reader = new FileReader();
+      reader.onload = function(e){
+        banners.push({id:Date.now()+Math.random(),src:e.target.result,name:file.name,date:new Date().toLocaleDateString('ar-EG')});
+        loaded++;
+        if(loaded===files.length){
+          localStorage.setItem('heg_banners', JSON.stringify(banners));
+          loadBanners();
+          showToast(\`✅ تم رفع \${files.length} صورة\`);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function loadBanners(){
+    const banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
+    const grid = document.getElementById('banners-grid');
+    if(!banners.length){
+      grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-muted);font-size:12px"><i class="fas fa-image" style="font-size:20px;display:block;margin-bottom:6px;opacity:.3"></i>لا توجد صور بعد</div>';
+      return;
+    }
+    grid.innerHTML = banners.map(b=>\`
+      <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:#eee;border:1px solid var(--border-light)">
+        <img src="\${b.src}" style="width:100%;height:100%;object-fit:cover">
+        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6),transparent);opacity:0;transition:.2s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
+          <div style="position:absolute;bottom:6px;right:6px;display:flex;gap:4px">
+            <button onclick="removeBanner('\${b.id}')" style="background:rgba(163,45,45,.85);color:#fff;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:10px">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+          <div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;padding:2px 6px;border-radius:4px;font-size:9px">\${b.name.substring(0,12)}</div>
+        </div>
+      </div>\`).join('');
+  }
+
+  function removeBanner(id){
+    let banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
+    banners = banners.filter(b=>b.id!=id);
+    localStorage.setItem('heg_banners', JSON.stringify(banners));
+    loadBanners();
+    showToast('🗑️ تم حذف الصورة');
+  }
+
+  function updateColor(varName, value){
+    document.documentElement.style.setProperty(varName, value);
+    const colors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
+    colors[varName] = value;
+    localStorage.setItem('heg_colors', JSON.stringify(colors));
+    showToast('🎨 تم تغيير اللون');
+  }
+
+  function resetColors(){
+    localStorage.removeItem('heg_colors');
+    location.reload();
+  }
+
+  // Apply saved colors on load
+  const savedColors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
+  Object.entries(savedColors).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
+
+  loadSiteData();
+  </script>
+  `
+  return c.html(layout('إدارة الموقع', 'site', content))
 })
 
 // ======== ORG STRUCTURE PAGE ========
