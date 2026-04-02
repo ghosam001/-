@@ -514,19 +514,17 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
 
     // Toast helper
     window.showToast = function(msg){
-      const t=document.getElementById('toast');
+      var t=document.getElementById('toast');
       t.textContent=msg;t.classList.add('show');
-      setTimeout(()=>t.classList.remove('show'),3000);
-    }
+      setTimeout(function(){ t.classList.remove('show'); },3000);
+    };
 
     // Apply saved site settings on every page load
-    (function applySiteSettings(){
-      // 1) Apply saved colors
+    function applySiteSettings(){
       try{
         var colors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
         Object.keys(colors).forEach(function(k){ document.documentElement.style.setProperty(k, colors[k]); });
       }catch(e){}
-      // 2) Apply saved logo in topbar
       try{
         var logo = localStorage.getItem('heg_site_logo');
         var logoBox = document.getElementById('topbar-logo-box');
@@ -534,13 +532,13 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
           logoBox.innerHTML = '<img src="'+logo+'" style="max-height:44px;max-width:80px;object-fit:contain;vertical-align:middle">';
         }
       }catch(e){}
-      // 3) Apply saved company name & tagline in topbar
       try{
-        var data = JSON.parse(localStorage.getItem('heg_site_data')||'{}');
-        if(data.name){ var el=document.getElementById('topbar-name-main'); if(el) el.textContent=data.name; }
-        if(data.tagline){ var el2=document.getElementById('topbar-name-sub'); if(el2) el2.textContent=data.tagline; }
+        var sdata = JSON.parse(localStorage.getItem('heg_site_data')||'{}');
+        if(sdata.name){ var el=document.getElementById('topbar-name-main'); if(el) el.textContent=sdata.name; }
+        if(sdata.tagline){ var el2=document.getElementById('topbar-name-sub'); if(el2) el2.textContent=sdata.tagline; }
       }catch(e){}
-    })();
+    }
+    applySiteSettings();
   </script>
 </body>
 </html>`
@@ -2281,25 +2279,25 @@ app.get('/site', (c) => {
   <script>
   // Load saved data
   function loadSiteData(){
-    const data = JSON.parse(localStorage.getItem('heg_site_data')||'{}');
+    var data = JSON.parse(localStorage.getItem('heg_site_data')||'{}');
     if(data.name) document.getElementById('site-name').value = data.name;
     if(data.tagline) document.getElementById('site-tagline').value = data.tagline;
     if(data.email) document.getElementById('site-email').value = data.email;
     if(data.phone) document.getElementById('site-phone').value = data.phone;
     if(data.web) document.getElementById('site-web').value = data.web;
     if(data.address) document.getElementById('site-address').value = data.address;
-    const social = JSON.parse(localStorage.getItem('heg_social')||'{}');
+    var social = JSON.parse(localStorage.getItem('heg_social')||'{}');
     if(social.ig) document.getElementById('social-ig').value = social.ig;
     if(social.wa) document.getElementById('social-wa').value = social.wa;
     if(social.fb) document.getElementById('social-fb').value = social.fb;
     if(social.tt) document.getElementById('social-tt').value = social.tt;
-    const logo = localStorage.getItem('heg_site_logo');
+    var logo = localStorage.getItem('heg_site_logo');
     if(logo) showLogo(logo);
     loadBanners();
   }
 
   function saveSiteInfo(){
-    const data = {
+    var data = {
       name: document.getElementById('site-name').value,
       tagline: document.getElementById('site-tagline').value,
       email: document.getElementById('site-email').value,
@@ -2308,7 +2306,6 @@ app.get('/site', (c) => {
       address: document.getElementById('site-address').value
     };
     localStorage.setItem('heg_site_data', JSON.stringify(data));
-    // Update topbar immediately
     var mainEl = document.getElementById('topbar-name-main');
     var subEl = document.getElementById('topbar-name-sub');
     if(mainEl) mainEl.textContent = data.name;
@@ -2317,7 +2314,7 @@ app.get('/site', (c) => {
   }
 
   function saveSocial(){
-    const social = {
+    var social = {
       ig: document.getElementById('social-ig').value,
       wa: document.getElementById('social-wa').value,
       fb: document.getElementById('social-fb').value,
@@ -2329,43 +2326,42 @@ app.get('/site', (c) => {
 
   function uploadLogo(input){
     if(!input.files[0]) return;
-    const reader = new FileReader();
+    var reader = new FileReader();
     reader.onload = function(e){
       localStorage.setItem('heg_site_logo', e.target.result);
       showLogo(e.target.result);
-      // Update topbar logo immediately
       var logoBox = document.getElementById('topbar-logo-box');
       if(logoBox) logoBox.innerHTML = '<img src="'+e.target.result+'" style="max-height:44px;max-width:80px;object-fit:contain;vertical-align:middle">';
-      showToast('تم رفع الشعار بنجاح وتم تحديث الواجهة');
+      showToast('تم رفع الشعار بنجاح وظهر في الواجهة');
     };
     reader.readAsDataURL(input.files[0]);
   }
 
   function showLogo(src){
     document.getElementById('logo-inner').innerHTML =
-      \`<img src="\${src}" style="max-height:80px;max-width:200px;object-fit:contain">\`;
+      '<img src="'+src+'" style="max-height:80px;max-width:200px;object-fit:contain">';
   }
 
-    function removeLogo(){
+  function removeLogo(){
     if(!confirm('حذف الشعار الحالي؟')) return;
     localStorage.removeItem('heg_site_logo');
     document.getElementById('logo-inner').innerHTML =
-      '<i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-muted);display:block;margin-bottom:6px"></i><span style="font-size:12px;color:var(--text-muted)">اضغط لرفع الشعار</span>';
-    // Restore topbar logo to text
+      '<i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-muted);display:block;margin-bottom:6px"></i>'+
+      '<span style="font-size:12px;color:var(--text-muted)">اضغط لرفع الشعار</span>';
     var logoBox = document.getElementById('topbar-logo-box');
-    if(logoBox) logoBox.innerHTML = 'HEG';
+    if(logoBox) logoBox.textContent = 'HEG';
     showToast('تم حذف الشعار');
   }
 
   function uploadBanners(input){
-    const files = Array.from(input.files);
-    let banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
-    let loaded = 0;
-    files.forEach(file=>{
+    var files = Array.from(input.files);
+    var banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
+    var loaded = 0;
+    files.forEach(function(file){
       if(file.size > 5*1024*1024){ showToast('حجم الصورة أكبر من 5MB'); return; }
-      const reader = new FileReader();
+      var reader = new FileReader();
       reader.onload = function(e){
-        banners.push({id:Date.now()+Math.random(),src:e.target.result,name:file.name,date:new Date().toLocaleDateString('ar-EG')});
+        banners.push({id:Date.now()+Math.random(), src:e.target.result, name:file.name, date:new Date().toLocaleDateString('ar-EG')});
         loaded++;
         if(loaded===files.length){
           localStorage.setItem('heg_banners', JSON.stringify(banners));
@@ -2378,37 +2374,36 @@ app.get('/site', (c) => {
   }
 
   function loadBanners(){
-    const banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
-    const grid = document.getElementById('banners-grid');
+    var banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
+    var grid = document.getElementById('banners-grid');
     if(!banners.length){
-      grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-muted);font-size:12px"><i class="fas fa-image" style="font-size:20px;display:block;margin-bottom:6px;opacity:.3"></i>لا توجد صور بعد</div>';
+      grid.innerHTML='<div style="grid-column:1/-1;text-align:center;padding:16px;color:var(--text-muted);font-size:12px">لا توجد صور بعد</div>';
       return;
     }
-    grid.innerHTML = banners.map(b=>\`
-      <div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:#eee;border:1px solid var(--border-light)">
-        <img src="\${b.src}" style="width:100%;height:100%;object-fit:cover">
-        <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.6),transparent);opacity:0;transition:.2s" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0'">
-          <div style="position:absolute;bottom:6px;right:6px;display:flex;gap:4px">
-            <button onclick="removeBanner('\${b.id}')" style="background:rgba(163,45,45,.85);color:#fff;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:10px">
-              <i class="fas fa-trash"></i>
-            </button>
-          </div>
-          <div style="position:absolute;top:6px;right:6px;background:rgba(0,0,0,.6);color:#fff;padding:2px 6px;border-radius:4px;font-size:9px">\${b.name.substring(0,12)}</div>
-        </div>
-      </div>\`).join('');
+    var html = '';
+    banners.forEach(function(b){
+      html += '<div style="position:relative;border-radius:8px;overflow:hidden;aspect-ratio:4/3;background:#eee;border:1px solid #ddd">';
+      html += '<img src="' + b.src + '" style="width:100%;height:100%;object-fit:cover">';
+      html += '<div style="position:absolute;bottom:4px;right:4px">';
+      html += '<button onclick="removeBanner(' + JSON.stringify(b.id) + ')" style="background:rgba(163,45,45,.85);color:#fff;border:none;border-radius:5px;padding:4px 8px;cursor:pointer;font-size:10px">حذف</button>';
+      html += '</div>';
+      html += '<div style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.5);color:#fff;padding:2px 5px;border-radius:4px;font-size:9px">' + b.name.substring(0,12) + '</div>';
+      html += '</div>';
+    });
+    grid.innerHTML = html;
   }
 
   function removeBanner(id){
-    let banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
-    banners = banners.filter(b=>b.id!=id);
+    var banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
+    banners = banners.filter(function(b){ return b.id!=id; });
     localStorage.setItem('heg_banners', JSON.stringify(banners));
     loadBanners();
-    showToast('\\uD83D\\uDDD1\\FE0F تم حذف الصورة');
+    showToast('تم حذف الصورة');
   }
 
   function updateColor(varName, value){
     document.documentElement.style.setProperty(varName, value);
-    const colors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
+    var colors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
     colors[varName] = value;
     localStorage.setItem('heg_colors', JSON.stringify(colors));
     showToast('تم تغيير اللون بنجاح');
@@ -2418,10 +2413,6 @@ app.get('/site', (c) => {
     localStorage.removeItem('heg_colors');
     location.reload();
   }
-
-  // Apply saved colors on load
-  const savedColors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
-  Object.entries(savedColors).forEach(([k,v])=>document.documentElement.style.setProperty(k,v));
 
   loadSiteData();
   </script>
