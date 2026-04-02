@@ -449,6 +449,16 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
     </a>
     <div class="topbar-right">
       <span class="topbar-date" id="top-date"></span>
+      <div id="topbar-user-info" style="display:none;align-items:center;gap:10px;margin-right:8px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div id="topbar-avatar" style="width:32px;height:32px;border-radius:50%;background:var(--gold);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">م</div>
+          <div style="line-height:1.2">
+            <div id="topbar-username" style="font-size:12px;font-weight:700;color:var(--text-dark)">مدير النظام</div>
+            <div id="topbar-userrole" style="font-size:10px;color:var(--text-muted)">مدير</div>
+          </div>
+        </div>
+        <button id="btn-logout" style="background:transparent;border:1px solid var(--border);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:11px;font-family:Cairo,sans-serif;color:var(--text-muted);display:flex;align-items:center;gap:5px"><i class="fas fa-sign-out-alt" style="color:#a32d2d"></i> خروج</button>
+      </div>
     </div>
   </div>
 
@@ -548,6 +558,34 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
       }catch(e){}
     }
     applySiteSettings();
+
+    // ============================================================
+    // AUTH GUARD - check login on every page
+    // ============================================================
+    (function authGuard(){
+      var session = null;
+      try{ session = JSON.parse(sessionStorage.getItem('heg_session')||'null'); }catch(e){}
+      if(!session || !session.userId){
+        window.location.replace('/login');
+        return;
+      }
+      // Show user info in topbar
+      var roleLabel = {admin:'مدير',supervisor:'مشرف',employee:'موظف'};
+      var info = document.getElementById('topbar-user-info');
+      var nameEl = document.getElementById('topbar-username');
+      var roleEl = document.getElementById('topbar-userrole');
+      var avatar = document.getElementById('topbar-avatar');
+      if(info) info.style.display = 'flex';
+      if(nameEl) nameEl.textContent = session.name || session.username;
+      if(roleEl) roleEl.textContent = roleLabel[session.role] || session.role;
+      if(avatar) avatar.textContent = (session.name || session.username || 'م').charAt(0);
+      // Logout button
+      var logoutBtn = document.getElementById('btn-logout');
+      if(logoutBtn) logoutBtn.addEventListener('click', function(){
+        sessionStorage.removeItem('heg_session');
+        window.location.replace('/login');
+      });
+    })();
   </script>
 </body>
 </html>`
@@ -2457,6 +2495,286 @@ app.get('/design', (c) => {
   return c.html(layout('تصميم الواجهة', 'design', designPage()))
 })
 
+
+// ======== LOGIN PAGE ========
+app.get('/login', (c) => {
+  return c.html(`<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>تسجيل الدخول — HEG Holiday Travel Services</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%231A5C6B'/><text y='.9em' font-size='62' font-family='Arial' font-weight='900' fill='white' x='8'>H</text><rect y='78' width='100' height='6' rx='3' fill='%23D4AB4B'/></svg>">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:'Cairo',sans-serif;
+      min-height:100vh;
+      background: linear-gradient(135deg, #0d3b47 0%, #1A5C6B 40%, #0d3b47 100%);
+      display:flex;align-items:center;justify-content:center;
+      position:relative;overflow:hidden;
+    }
+    /* animated background circles */
+    body::before{
+      content:'';position:absolute;width:600px;height:600px;
+      background:rgba(212,171,75,.06);border-radius:50%;
+      top:-200px;left:-200px;animation:float1 8s ease-in-out infinite;
+    }
+    body::after{
+      content:'';position:absolute;width:400px;height:400px;
+      background:rgba(26,92,107,.3);border-radius:50%;
+      bottom:-150px;right:-100px;animation:float2 10s ease-in-out infinite;
+    }
+    @keyframes float1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(30px,40px) scale(1.05)}}
+    @keyframes float2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-20px,-30px) scale(1.08)}}
+
+    .login-card{
+      position:relative;z-index:2;
+      background:#fff;border-radius:20px;
+      width:100%;max-width:440px;
+      box-shadow:0 24px 64px rgba(0,0,0,.25);
+      overflow:hidden;
+    }
+    .login-header{
+      background:linear-gradient(135deg,#1A5C6B,#3A8C9B);
+      padding:36px 40px 28px;text-align:center;
+      position:relative;
+    }
+    .login-header::after{
+      content:'';position:absolute;bottom:-1px;left:0;right:0;height:4px;
+      background:linear-gradient(90deg,#D4AB4B,#f0c96e,#D4AB4B);
+    }
+    .login-logo{
+      width:72px;height:72px;border-radius:16px;
+      background:rgba(255,255,255,.15);border:2px solid rgba(255,255,255,.3);
+      display:flex;align-items:center;justify-content:center;
+      margin:0 auto 14px;font-size:28px;font-weight:900;color:#fff;
+      letter-spacing:-1px;
+    }
+    .login-title{font-size:20px;font-weight:800;color:#fff;margin-bottom:4px}
+    .login-sub{font-size:12px;color:rgba(255,255,255,.7)}
+
+    .login-body{padding:32px 40px 36px}
+
+    .field{margin-bottom:18px}
+    .field label{display:block;font-size:12px;font-weight:600;color:#444;margin-bottom:6px}
+    .field-wrap{position:relative}
+    .field-wrap i.icon{
+      position:absolute;right:12px;top:50%;transform:translateY(-50%);
+      color:#9bb;font-size:14px;pointer-events:none;
+    }
+    .field input{
+      width:100%;padding:11px 38px 11px 14px;
+      border:1.5px solid #dde8ea;border-radius:10px;
+      font-family:'Cairo',sans-serif;font-size:13px;color:#333;
+      background:#f8fcfd;transition:.2s;outline:none;
+    }
+    .field input:focus{border-color:#1A5C6B;background:#fff;box-shadow:0 0 0 3px rgba(26,92,107,.1)}
+    .field input.err{border-color:#e05c5c;background:#fff8f8}
+
+    .show-pw{
+      position:absolute;left:12px;top:50%;transform:translateY(-50%);
+      background:none;border:none;cursor:pointer;color:#9bb;font-size:13px;padding:0;
+    }
+    .show-pw:hover{color:#1A5C6B}
+
+    .err-msg{
+      display:none;background:#fff0f0;border:1px solid #f0bbbb;border-radius:8px;
+      padding:10px 14px;font-size:12px;color:#c0392b;margin-bottom:16px;
+      align-items:center;gap:8px;
+    }
+    .err-msg.show{display:flex}
+
+    .btn-login{
+      width:100%;padding:13px;border:none;border-radius:12px;
+      background:linear-gradient(135deg,#1A5C6B,#3A8C9B);
+      color:#fff;font-family:'Cairo',sans-serif;font-size:15px;font-weight:700;
+      cursor:pointer;transition:.2s;letter-spacing:.3px;
+      display:flex;align-items:center;justify-content:center;gap:8px;
+    }
+    .btn-login:hover{background:linear-gradient(135deg,#0d3b47,#1A5C6B);transform:translateY(-1px);box-shadow:0 6px 20px rgba(26,92,107,.35)}
+    .btn-login:active{transform:translateY(0)}
+    .btn-login:disabled{opacity:.6;cursor:not-allowed;transform:none}
+
+    .login-footer{
+      text-align:center;padding:0 40px 28px;
+      font-size:11px;color:#aaa;
+    }
+    .hint-box{
+      background:#f0f8fa;border-radius:10px;padding:12px 16px;
+      margin-top:18px;font-size:11px;color:#2a7a8a;line-height:1.7;
+      border:1px dashed #b2d8e0;
+    }
+    .hint-box strong{font-weight:700}
+
+    .role-badge{
+      display:inline-block;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:700;margin-right:4px;
+    }
+    .spinning{animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="login-header">
+      <div class="login-logo" id="login-logo-box">HEG</div>
+      <div class="login-title" id="login-site-name">HEG Holiday Travel</div>
+      <div class="login-sub">نظام إدارة السياحة — تسجيل الدخول</div>
+    </div>
+
+    <div class="login-body">
+      <div class="err-msg" id="err-msg">
+        <i class="fas fa-exclamation-circle"></i>
+        <span id="err-text">اسم المستخدم أو كلمة المرور غير صحيحة</span>
+      </div>
+
+      <div class="field">
+        <label><i class="fas fa-user" style="color:#1A5C6B;margin-left:4px"></i> اسم المستخدم</label>
+        <div class="field-wrap">
+          <i class="icon fas fa-user"></i>
+          <input type="text" id="inp-user" placeholder="أدخل اسم المستخدم" dir="ltr" autocomplete="username">
+        </div>
+      </div>
+
+      <div class="field">
+        <label><i class="fas fa-lock" style="color:#1A5C6B;margin-left:4px"></i> كلمة المرور</label>
+        <div class="field-wrap">
+          <i class="icon fas fa-lock"></i>
+          <input type="password" id="inp-pass" placeholder="أدخل كلمة المرور" dir="ltr" autocomplete="current-password">
+          <button class="show-pw" id="btn-show-pw" type="button" tabindex="-1">
+            <i class="fas fa-eye" id="eye-icon"></i>
+          </button>
+        </div>
+      </div>
+
+      <button class="btn-login" id="btn-login">
+        <i class="fas fa-sign-in-alt"></i> دخول
+      </button>
+
+      <div class="hint-box">
+        <strong><i class="fas fa-info-circle"></i> بيانات الدخول الافتراضية:</strong><br>
+        <span class="role-badge" style="background:#FAEEDA;color:#BA7517">مدير</span>
+        المستخدم: <strong>admin</strong> — كلمة المرور: <strong>admin123</strong>
+      </div>
+    </div>
+
+    <div class="login-footer">
+      جميع الحقوق محفوظة © 2026 HEG Holiday Travel Services
+    </div>
+  </div>
+
+  <script>
+  (function(){
+    // Apply saved logo / site name on login page too
+    try{
+      var logo = localStorage.getItem('heg_site_logo');
+      var box = document.getElementById('login-logo-box');
+      if(logo && box) box.innerHTML = '<img src="'+logo+'" style="max-height:56px;max-width:56px;object-fit:contain">';
+      var sd = JSON.parse(localStorage.getItem('heg_site_data')||'{}');
+      if(sd.name){ var el=document.getElementById('login-site-name'); if(el) el.textContent=sd.name; }
+    }catch(e){}
+
+    // Seed default admin if users store is empty
+    function getUsers(){ try{ return JSON.parse(localStorage.getItem('heg_users')||'null')||[]; }catch(e){ return []; } }
+    function setUsers(v){ localStorage.setItem('heg_users', JSON.stringify(v)); }
+    if(!getUsers().length){
+      setUsers([{id:'u1',name:'مدير النظام',username:'admin',password:'admin123',role:'admin',email:'admin@heg.com',phone:'+968 9000 0000',dept:'الإدارة',status:'active',createdAt:'2026-01-01'}]);
+    }
+
+    // If already logged in → redirect to dashboard
+    try{
+      var s = JSON.parse(sessionStorage.getItem('heg_session')||'null');
+      if(s && s.userId) window.location.replace('/');
+    }catch(e){}
+
+    var inpUser = document.getElementById('inp-user');
+    var inpPass = document.getElementById('inp-pass');
+    var btnLogin = document.getElementById('btn-login');
+    var errMsg   = document.getElementById('err-msg');
+    var errText  = document.getElementById('err-text');
+
+    // Show/hide password
+    document.getElementById('btn-show-pw').addEventListener('click', function(){
+      var isPass = inpPass.type === 'password';
+      inpPass.type = isPass ? 'text' : 'password';
+      document.getElementById('eye-icon').className = isPass ? 'fas fa-eye-slash' : 'fas fa-eye';
+    });
+
+    // Enter key trigger
+    [inpUser, inpPass].forEach(function(el){
+      el.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+    });
+
+    btnLogin.addEventListener('click', doLogin);
+
+    function showErr(msg){
+      errText.textContent = msg;
+      errMsg.classList.add('show');
+      inpUser.classList.add('err');
+      inpPass.classList.add('err');
+    }
+    function clearErr(){
+      errMsg.classList.remove('show');
+      inpUser.classList.remove('err');
+      inpPass.classList.remove('err');
+    }
+
+    function doLogin(){
+      clearErr();
+      var username = (inpUser.value||'').trim();
+      var password = (inpPass.value||'').trim();
+
+      if(!username){ showErr('أدخل اسم المستخدم'); inpUser.focus(); return; }
+      if(!password){ showErr('أدخل كلمة المرور'); inpPass.focus(); return; }
+
+      // Loading state
+      btnLogin.disabled = true;
+      btnLogin.innerHTML = '<i class="fas fa-circle-notch spinning"></i> جارٍ التحقق...';
+
+      setTimeout(function(){
+        var users = getUsers();
+        var user  = users.find(function(u){
+          return u.username === username && u.password === password && u.status === 'active';
+        });
+
+        btnLogin.disabled = false;
+        btnLogin.innerHTML = '<i class="fas fa-sign-in-alt"></i> دخول';
+
+        if(!user){
+          var blocked = users.find(function(u){ return u.username===username && u.status!=='active'; });
+          if(blocked) showErr('هذا الحساب غير نشط. تواصل مع المدير');
+          else showErr('اسم المستخدم أو كلمة المرور غير صحيحة');
+          inpPass.value = '';
+          inpPass.focus();
+          return;
+        }
+
+        // Save session
+        var session = {
+          userId:   user.id,
+          name:     user.name,
+          username: user.username,
+          role:     user.role,
+          dept:     user.dept || '',
+          loginAt:  new Date().toISOString()
+        };
+        sessionStorage.setItem('heg_session', JSON.stringify(session));
+
+        // Redirect
+        btnLogin.innerHTML = '<i class="fas fa-check-circle"></i> مرحباً ' + user.name + '...';
+        btnLogin.style.background = 'linear-gradient(135deg,#0F6E56,#1a9b78)';
+        setTimeout(function(){ window.location.replace('/'); }, 700);
+
+      }, 500);
+    }
+
+  })();
+  </script>
+</body>
+</html>`)
+})
 
 export default app
 
