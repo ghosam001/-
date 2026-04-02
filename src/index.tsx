@@ -437,7 +437,7 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
   <!-- TOPBAR -->
   <div class="topbar">
     <a class="topbar-brand" href="/">
-      <div class="topbar-logo">HEG</div>
+      <div class="topbar-logo" id="topbar-logo-box">HEG</div>
       <div class="topbar-gold-line"></div>
       <div class="topbar-name">
         <span class="topbar-name-main">HEG</span>
@@ -518,6 +518,29 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
       t.textContent=msg;t.classList.add('show');
       setTimeout(()=>t.classList.remove('show'),3000);
     }
+
+    // Apply saved site settings on every page load
+    (function applySiteSettings(){
+      // 1) Apply saved colors
+      try{
+        var colors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
+        Object.keys(colors).forEach(function(k){ document.documentElement.style.setProperty(k, colors[k]); });
+      }catch(e){}
+      // 2) Apply saved logo in topbar
+      try{
+        var logo = localStorage.getItem('heg_site_logo');
+        var logoBox = document.getElementById('topbar-logo-box');
+        if(logo && logoBox){
+          logoBox.innerHTML = '<img src="'+logo+'" style="max-height:44px;max-width:80px;object-fit:contain;vertical-align:middle">';
+        }
+      }catch(e){}
+      // 3) Apply saved company name & tagline in topbar
+      try{
+        var data = JSON.parse(localStorage.getItem('heg_site_data')||'{}');
+        if(data.name){ var el=document.getElementById('topbar-name-main'); if(el) el.textContent=data.name; }
+        if(data.tagline){ var el2=document.getElementById('topbar-name-sub'); if(el2) el2.textContent=data.tagline; }
+      }catch(e){}
+    })();
   </script>
 </body>
 </html>`
@@ -2285,7 +2308,12 @@ app.get('/site', (c) => {
       address: document.getElementById('site-address').value
     };
     localStorage.setItem('heg_site_data', JSON.stringify(data));
-    showToast('تم حفظ معلومات الشركة');
+    // Update topbar immediately
+    var mainEl = document.getElementById('topbar-name-main');
+    var subEl = document.getElementById('topbar-name-sub');
+    if(mainEl) mainEl.textContent = data.name;
+    if(subEl) subEl.textContent = data.tagline;
+    showToast('تم حفظ معلومات الشركة بنجاح');
   }
 
   function saveSocial(){
@@ -2305,7 +2333,10 @@ app.get('/site', (c) => {
     reader.onload = function(e){
       localStorage.setItem('heg_site_logo', e.target.result);
       showLogo(e.target.result);
-      showToast('تم رفع الشعار بنجاح');
+      // Update topbar logo immediately
+      var logoBox = document.getElementById('topbar-logo-box');
+      if(logoBox) logoBox.innerHTML = '<img src="'+e.target.result+'" style="max-height:44px;max-width:80px;object-fit:contain;vertical-align:middle">';
+      showToast('تم رفع الشعار بنجاح وتم تحديث الواجهة');
     };
     reader.readAsDataURL(input.files[0]);
   }
@@ -2315,12 +2346,14 @@ app.get('/site', (c) => {
       \`<img src="\${src}" style="max-height:80px;max-width:200px;object-fit:contain">\`;
   }
 
-  function removeLogo(){
+    function removeLogo(){
     if(!confirm('حذف الشعار الحالي؟')) return;
     localStorage.removeItem('heg_site_logo');
     document.getElementById('logo-inner').innerHTML =
-      \`<i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-muted);display:block;margin-bottom:6px"></i>
-       <span style="font-size:12px;color:var(--text-muted)">اضغط لرفع الشعار</span>\`;
+      '<i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-muted);display:block;margin-bottom:6px"></i><span style="font-size:12px;color:var(--text-muted)">اضغط لرفع الشعار</span>';
+    // Restore topbar logo to text
+    var logoBox = document.getElementById('topbar-logo-box');
+    if(logoBox) logoBox.innerHTML = 'HEG';
     showToast('تم حذف الشعار');
   }
 
@@ -2378,7 +2411,7 @@ app.get('/site', (c) => {
     const colors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
     colors[varName] = value;
     localStorage.setItem('heg_colors', JSON.stringify(colors));
-    showToast('\\uD83C\\uDFA8 تم تغيير اللون');
+    showToast('تم تغيير اللون بنجاح');
   }
 
   function resetColors(){
