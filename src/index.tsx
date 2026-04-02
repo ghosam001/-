@@ -687,7 +687,7 @@ app.get('/clients', (c) => {
       <i class="fas fa-user-plus"></i> إضافة عميل
     </button>
     <button class="btn" onclick="exportExcel()" style="background:#1D6F42;color:#fff">
-      <i class="fas fa-file-excel"></i> تصدير Excel
+      <i class="fas fa-file-csv"></i> تصدير CSV
     </button>
   </div>
 
@@ -759,7 +759,6 @@ app.get('/clients', (c) => {
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
   let clients = JSON.parse(localStorage.getItem('heg_clients')||'[]');
   let editClientId = null;
@@ -826,8 +825,8 @@ app.get('/clients', (c) => {
   function saveClient(){
     const name=document.getElementById('cl-name').value.trim();
     const phone=document.getElementById('cl-phone').value.trim();
-    if(!name){document.getElementById('cl-name').focus();showToast('⚠️ الاسم مطلوب');return;}
-    if(!phone){document.getElementById('cl-phone').focus();showToast('⚠️ رقم الهاتف مطلوب');return;}
+    if(!name){document.getElementById('cl-name').focus();showToast('الاسم مطلوب');return;}
+    if(!phone){document.getElementById('cl-phone').focus();showToast('رقم الهاتف مطلوب');return;}
     const obj={
       cid:editClientId||Date.now(), name, phone,
       phone2:document.getElementById('cl-phone2').value.trim(),
@@ -842,7 +841,7 @@ app.get('/clients', (c) => {
     if(editClientId){ const i=clients.findIndex(c=>c.cid===editClientId); if(i>=0){obj.date=clients[i].date;clients[i]=obj;} }
     else clients.push(obj);
     saveClients();closeClientModal();renderClients();updateKPIs();
-    showToast(editClientId?'✅ تم تعديل بيانات العميل':'✅ تمت إضافة العميل بنجاح');
+    showToast(editClientId?'تم تعديل بيانات العميل':'تمت إضافة العميل بنجاح');
   }
 
   function editClient(cid){
@@ -859,23 +858,26 @@ app.get('/clients', (c) => {
   function delClient(cid){
     const c=clients.find(x=>x.cid===cid);
     if(!confirm('حذف العميل: '+(c?c.name:'')+' ؟'))return;
-    clients=clients.filter(x=>x.cid!==cid);saveClients();renderClients();updateKPIs();showToast('🗑️ تم حذف العميل');
+    clients=clients.filter(x=>x.cid!==cid);saveClients();renderClients();updateKPIs();showToast('تم حذف العميل');
   }
   function sendWA(cid){
     const c=clients.find(x=>x.cid===cid);if(!c)return;
     const phone=c.phone.replace(/[^0-9]/g,'');
-    const msg=encodeURIComponent('مرحباً '+c.name+' 👋\\nنتشرف بخدمتكم في HEG للسياحة 🌍\\nهل تحتاج مساعدة في التخطيط لرحلتك القادمة؟');
+    const msg=encodeURIComponent('مرحباً '+c.name+'\\nنتشرف بخدمتكم في HEG للسياحة\\nهل تحتاج مساعدة في التخطيط لرحلتك القادمة؟');
     window.open('https://wa.me/'+phone+'?text='+msg,'_blank');
   }
   function exportExcel(){
-    if(!clients.length){showToast('⚠️ لا يوجد عملاء للتصدير');return;}
-    const data=clients.map((c,i)=>({'#':i+1,'الاسم الكامل':c.name||'','رقم الهاتف':c.phone||'','هاتف بديل':c.phone2||'','العنوان':c.address||'','رقم الهوية':c.id||'','الجنسية':c.nat||'','البريد الإلكتروني':c.email||'','تاريخ الميلاد':c.dob||'','ملاحظات':c.note||'','تاريخ التسجيل':c.date||''}));
-    const ws=XLSX.utils.json_to_sheet(data);
-    ws['!cols']=[{wch:5},{wch:24},{wch:16},{wch:16},{wch:26},{wch:18},{wch:12},{wch:26},{wch:14},{wch:24},{wch:14}];
-    const wb=XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb,ws,'عملاء HEG');
-    XLSX.writeFile(wb,'HEG_Clients_'+new Date().toISOString().split('T')[0]+'.xlsx');
-    showToast('📊 تم تصدير بيانات العملاء بنجاح');
+    if(!clients.length){showToast('لا يوجد عملاء للتصدير');return;}
+    const headers=['#','الاسم الكامل','رقم الهاتف','هاتف بديل','العنوان','رقم الهوية','الجنسية','البريد الإلكتروني','تاريخ الميلاد','ملاحظات','تاريخ التسجيل'];
+    const rows=clients.map((c,i)=>[i+1,c.name||'',c.phone||'',c.phone2||'',c.address||'',c.id||'',c.nat||'',c.email||'',c.dob||'',c.note||'',c.date||'']);
+    const q=String.fromCharCode(34);
+    let csv=''+headers.join(',')+String.fromCharCode(10);
+    rows.forEach(r=>{ csv+=r.map(v=>q+String(v).replace(new RegExp(q,'g'),q+q)+q).join(',')+String.fromCharCode(10); });
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='HEG_Clients_'+new Date().toISOString().split('T')[0]+'.csv';
+    a.click();URL.revokeObjectURL(a.href);
+    showToast('تم تصدير بيانات العملاء — CSV');
   }
   renderClients();updateKPIs();
   </script>
@@ -1010,7 +1012,6 @@ app.get('/invoices', (c) => {
   <!-- PRINT TEMPLATE (hidden) -->
   <div id="print-area" style="display:none"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script>
   let invoices = JSON.parse(localStorage.getItem('heg_invoices')||'[]');
   let editInvId = null;
@@ -1038,7 +1039,7 @@ app.get('/invoices', (c) => {
     document.getElementById('inv-pay').value = 'نقداً';
     document.getElementById('inv-status').value = 'مسدد';
     document.getElementById('inv-due').value = new Date().toISOString().split('T')[0];
-    document.getElementById('inv-note').value = 'شكراً لثقتكم بـ HEG للسياحة 🌟';
+    document.getElementById('inv-note').value = 'شكراً لثقتكم بـ HEG للسياحة';
     document.getElementById('inv-total-display').textContent = '0.000 ر.ع';
   }
 
@@ -1070,7 +1071,7 @@ app.get('/invoices', (c) => {
       logoDataUrl = e.target.result;
       localStorage.setItem('heg_inv_logo', logoDataUrl);
       document.getElementById('inv-logo-preview').innerHTML = \`<img src="\${logoDataUrl}" style="max-height:60px;max-width:140px;object-fit:contain">\`;
-      showToast('✅ تم رفع الشعار');
+      showToast('تم رفع الشعار');
     };
     reader.readAsDataURL(input.files[0]);
   }
@@ -1078,7 +1079,7 @@ app.get('/invoices', (c) => {
   function saveInvoice(){
     const clientName = document.getElementById('inv-client-manual').value.trim() ||
       (document.getElementById('inv-client').options[document.getElementById('inv-client').selectedIndex]?.text || '');
-    if(!clientName){ showToast('⚠️ اسم العميل مطلوب'); return; }
+    if(!clientName){ showToast('اسم العميل مطلوب'); return; }
     const amt = parseFloat(document.getElementById('inv-amount').value)||0;
     const disc = parseFloat(document.getElementById('inv-disc').value)||0;
     const obj = {
@@ -1099,7 +1100,7 @@ app.get('/invoices', (c) => {
     if(editInvId){ const i=invoices.findIndex(x=>x.iid===editInvId); if(i>=0){obj.date=invoices[i].date;invoices[i]=obj;} }
     else invoices.unshift(obj);
     saveInvoices(); renderInvoices(); newInvoice();
-    showToast(editInvId ? '✅ تم تعديل الفاتورة' : '✅ تم حفظ الفاتورة');
+    showToast(editInvId ? 'تم تعديل الفاتورة' : 'تم حفظ الفاتورة');
   }
 
   function editInvoice(iid){
@@ -1125,12 +1126,12 @@ app.get('/invoices', (c) => {
     const inv = invoices.find(x=>x.iid===iid);
     if(!confirm('حذف الفاتورة: '+(inv?inv.num:'')+' ؟')) return;
     invoices = invoices.filter(x=>x.iid!==iid);
-    saveInvoices(); renderInvoices(); showToast('🗑️ تم حذف الفاتورة');
+    saveInvoices(); renderInvoices(); showToast('تم حذف الفاتورة');
   }
 
   function printInvoice(){
     const clientName = document.getElementById('inv-client-manual').value.trim();
-    if(!clientName){ showToast('⚠️ أدخل بيانات الفاتورة أولاً'); return; }
+    if(!clientName){ showToast('أدخل بيانات الفاتورة أولاً'); return; }
     const num = document.getElementById('inv-num').value || genInvNum();
     const service = document.getElementById('inv-service').value;
     const detail = document.getElementById('inv-detail').value;
@@ -1226,11 +1227,11 @@ app.get('/invoices', (c) => {
   \${note?\`<div class="note-box"><strong>ملاحظة:</strong> \${note}</div>\`:''}
   <div class="footer">
     <strong>HEG Holiday Travel Services</strong> &nbsp;|&nbsp;
-    شكراً لثقتكم بنا 🌟 &nbsp;|&nbsp;
+    شكراً لثقتكم بنا &nbsp;|&nbsp;
     هذه الفاتورة صادرة إلكترونياً وصالحة بدون توقيع أو ختم
   </div>
 </div>
-<script>window.onload=function(){window.print()}<\/script>
+<script>window.onload=function(){window.print()}<'+'/script>
 </body></html>\`;
     const w = window.open('','_blank','width=900,height=700');
     w.document.write(html);
@@ -1341,7 +1342,7 @@ app.get('/services', (c) => {
             <label>الحالة</label>
             <select id="f-status"><option>نشط</option><option>موسمي</option><option>مخصص</option></select>
           </div>
-          <div class="field"><label>الأيقونة</label><input id="f-icon" placeholder="✈️" maxlength="4"></div>
+          <div class="field"><label>الأيقونة</label><input id="f-icon" placeholder="\\2708\\FE0F" maxlength="4"></div>
           <div class="field"><label>السعر</label><input id="f-price" placeholder="من 45 ر.ع للشخص"></div>
           <div class="field"><label>المدة</label><input id="f-dur" placeholder="يوم – أسبوع"></div>
           <div class="field"><label>الفئة المستهدفة</label><input id="f-target" placeholder="أفراد، عائلات"></div>
@@ -1361,16 +1362,16 @@ app.get('/services', (c) => {
 
   <script>
   const iconBgs={'سياحة داخلية':'#E5F3F5','سياحة خارجية':'#E1F5EE','خدمات سفر':'#FAEEDA','سياحة دينية':'#EEEDFE','أعمال وشركات':'#FAECE7'};
-  const catIcons={'سياحة داخلية':'🏔️','سياحة خارجية':'✈️','خدمات سفر':'🛂','سياحة دينية':'🕌','أعمال وشركات':'🤝'};
+  const catIcons={'سياحة داخلية':'\\uD83C\\uDFD4\\FE0F','سياحة خارجية':'\\2708\\FE0F','خدمات سفر':'\\uD83D\\uDEC2','سياحة دينية':'\\uD83D\\uDD4C','أعمال وشركات':'\\uD83E\\uDD1D'};
   const defaultServices=[
-    {id:1,title:'باقات سياحة داخلية',cat:'سياحة داخلية',icon:'🏔️',status:'نشط',price:'من 45 ر.ع للشخص',dur:'يوم – أسبوع',target:'أفراد، عائلات، مجموعات',cap:'2–50 شخص',desc:'برامج سياحية متكاملة داخل سلطنة عُمان تشمل الوجهات الطبيعية والتاريخية.',inc:['نقل ذهاب وإياب','مرشد سياحي معتمد','وجبات خلال الجولة'],steps:['استقبال الطلب','إعداد العرض','تأكيد الحجز','تنفيذ البرنامج'],pop:['جبل شمس','وادي شاب','نزوى','صلالة']},
-    {id:2,title:'باقات سياحة خارجية',cat:'سياحة خارجية',icon:'✈️',status:'نشط',price:'من 350 ر.ع للشخص',dur:'5 أيام – 3 أسابيع',target:'أفراد، عائلات، أزواج',cap:'2–30 شخص',desc:'برامج سفر منظمة لوجهات دولية مع تأمين الطيران والإقامة والجولات.',inc:['تذاكر الطيران','فندق 3–5 نجوم','جولات منظمة','تأمين سفر'],steps:['تحديد الوجهة','إصدار العرض','دفع 50% مقدم','تسليم مستندات السفر'],pop:['تركيا','جورجيا','تايلاند','الأردن']},
-    {id:3,title:'خدمة التأشيرات',cat:'خدمات سفر',icon:'🛂',status:'نشط',price:'من 15 ر.ع رسوم خدمة',dur:'3–15 يوم عمل',target:'الأفراد والشركات',cap:'غير محدود',desc:'استخراج التأشيرات لمختلف الدول مع متابعة الطلب حتى الموافقة.',inc:['مراجعة المستندات','تقديم الطلب','متابعة الطلب'],steps:['تقديم جواز السفر','مراجعة المتطلبات','دفع الرسوم','استلام التأشيرة'],pop:['شنغن','أمريكا','المملكة المتحدة','كندا']},
-    {id:4,title:'حجوزات الفنادق',cat:'خدمات سفر',icon:'🏨',status:'نشط',price:'حسب الفندق + 5% عمولة',dur:'فوري',target:'الأفراد والشركات',cap:'غير محدود',desc:'حجز الفنادق محلياً ودولياً بأسعار تنافسية من خلال شراكات مباشرة.',inc:['مقارنة أسعار','تأكيد فوري','سياسة إلغاء واضحة'],steps:['تحديد الوجهة','عرض الخيارات','الدفع','إرسال التأكيد'],pop:['فنادق مسقط','صلالة','دبي']},
-    {id:5,title:'السياحة الدينية',cat:'سياحة دينية',icon:'🕌',status:'موسمي',price:'من 650 ر.ع للشخص',dur:'7–14 يوم',target:'الأفراد والعائلات',cap:'10–40 شخص',desc:'برامج العمرة والزيارات الدينية وجولات المواقع الإسلامية.',inc:['تذاكر طيران','إقامة قرب الحرم','مرشد ديني'],steps:['تسجيل الطلب','دفع كامل المبلغ','استخراج التصريح','تنفيذ البرنامج'],pop:['عمرة رمضان','عمرة شعبان','المدينة المنورة']},
-    {id:6,title:'سياحة الأعمال والمؤتمرات',cat:'أعمال وشركات',icon:'🤝',status:'نشط',price:'حسب العقد',dur:'يوم – أسبوع',target:'الشركات والمؤسسات',cap:'10–200 شخص',desc:'تنظيم رحلات العمل ومؤتمرات الشركات وبرامج تحفيز الموظفين.',inc:['تنظيم كامل','نقل وإقامة','كاترينج وتجهيزات'],steps:['اجتماع تحديد الاحتياجات','إصدار عرض','توقيع العقد','تنفيذ الفعالية'],pop:['تيم بيلدنج','مؤتمرات سنوية','احتفاليات شركات']},
-    {id:7,title:'تأجير الحافلات والنقل',cat:'خدمات سفر',icon:'🚌',status:'نشط',price:'من 80 ر.ع/يوم',dur:'حسب الطلب',target:'المجموعات والشركات',cap:'10–50 شخص',desc:'خدمات نقل سياحي بحافلات مجهزة مع سائقين محترفين.',inc:['حافلة مكيفة','سائق محترف','تأمين'],steps:['تحديد المسار','إصدار عرض','تأكيد الحجز','تنفيذ النقل'],pop:['استقبال مطار','جولات سياحية','نقل المؤتمرات']},
-    {id:8,title:'برامج شهر العسل',cat:'سياحة خارجية',icon:'💑',status:'نشط',price:'من 480 ر.ع للشخصين',dur:'5–10 أيام',target:'الأزواج الجدد',cap:'2 أشخاص',desc:'باقات مخصصة للأزواج الجدد تجمع الرومانسية والترفيه في وجهات فاخرة.',inc:['غرفة ديلوكس','زهور ترحيبية','عشاء رومانسي'],steps:['تحديد الوجهة','تخصيص البرنامج','دفع 50%','تنفيذ البرنامج'],pop:['المالديف','إيطاليا','باريس','بالي']},
+    {id:1,title:'باقات سياحة داخلية',cat:'سياحة داخلية',icon:'\\uD83C\\uDFD4\\FE0F',status:'نشط',price:'من 45 ر.ع للشخص',dur:'يوم – أسبوع',target:'أفراد، عائلات، مجموعات',cap:'2–50 شخص',desc:'برامج سياحية متكاملة داخل سلطنة عُمان تشمل الوجهات الطبيعية والتاريخية.',inc:['نقل ذهاب وإياب','مرشد سياحي معتمد','وجبات خلال الجولة'],steps:['استقبال الطلب','إعداد العرض','تأكيد الحجز','تنفيذ البرنامج'],pop:['جبل شمس','وادي شاب','نزوى','صلالة']},
+    {id:2,title:'باقات سياحة خارجية',cat:'سياحة خارجية',icon:'\\2708\\FE0F',status:'نشط',price:'من 350 ر.ع للشخص',dur:'5 أيام – 3 أسابيع',target:'أفراد، عائلات، أزواج',cap:'2–30 شخص',desc:'برامج سفر منظمة لوجهات دولية مع تأمين الطيران والإقامة والجولات.',inc:['تذاكر الطيران','فندق 3–5 نجوم','جولات منظمة','تأمين سفر'],steps:['تحديد الوجهة','إصدار العرض','دفع 50% مقدم','تسليم مستندات السفر'],pop:['تركيا','جورجيا','تايلاند','الأردن']},
+    {id:3,title:'خدمة التأشيرات',cat:'خدمات سفر',icon:'\\uD83D\\uDEC2',status:'نشط',price:'من 15 ر.ع رسوم خدمة',dur:'3–15 يوم عمل',target:'الأفراد والشركات',cap:'غير محدود',desc:'استخراج التأشيرات لمختلف الدول مع متابعة الطلب حتى الموافقة.',inc:['مراجعة المستندات','تقديم الطلب','متابعة الطلب'],steps:['تقديم جواز السفر','مراجعة المتطلبات','دفع الرسوم','استلام التأشيرة'],pop:['شنغن','أمريكا','المملكة المتحدة','كندا']},
+    {id:4,title:'حجوزات الفنادق',cat:'خدمات سفر',icon:'\\uD83C\\uDFE8',status:'نشط',price:'حسب الفندق + 5% عمولة',dur:'فوري',target:'الأفراد والشركات',cap:'غير محدود',desc:'حجز الفنادق محلياً ودولياً بأسعار تنافسية من خلال شراكات مباشرة.',inc:['مقارنة أسعار','تأكيد فوري','سياسة إلغاء واضحة'],steps:['تحديد الوجهة','عرض الخيارات','الدفع','إرسال التأكيد'],pop:['فنادق مسقط','صلالة','دبي']},
+    {id:5,title:'السياحة الدينية',cat:'سياحة دينية',icon:'\\uD83D\\uDD4C',status:'موسمي',price:'من 650 ر.ع للشخص',dur:'7–14 يوم',target:'الأفراد والعائلات',cap:'10–40 شخص',desc:'برامج العمرة والزيارات الدينية وجولات المواقع الإسلامية.',inc:['تذاكر طيران','إقامة قرب الحرم','مرشد ديني'],steps:['تسجيل الطلب','دفع كامل المبلغ','استخراج التصريح','تنفيذ البرنامج'],pop:['عمرة رمضان','عمرة شعبان','المدينة المنورة']},
+    {id:6,title:'سياحة الأعمال والمؤتمرات',cat:'أعمال وشركات',icon:'\\uD83E\\uDD1D',status:'نشط',price:'حسب العقد',dur:'يوم – أسبوع',target:'الشركات والمؤسسات',cap:'10–200 شخص',desc:'تنظيم رحلات العمل ومؤتمرات الشركات وبرامج تحفيز الموظفين.',inc:['تنظيم كامل','نقل وإقامة','كاترينج وتجهيزات'],steps:['اجتماع تحديد الاحتياجات','إصدار عرض','توقيع العقد','تنفيذ الفعالية'],pop:['تيم بيلدنج','مؤتمرات سنوية','احتفاليات شركات']},
+    {id:7,title:'تأجير الحافلات والنقل',cat:'خدمات سفر',icon:'\\uD83D\\uDE8C',status:'نشط',price:'من 80 ر.ع/يوم',dur:'حسب الطلب',target:'المجموعات والشركات',cap:'10–50 شخص',desc:'خدمات نقل سياحي بحافلات مجهزة مع سائقين محترفين.',inc:['حافلة مكيفة','سائق محترف','تأمين'],steps:['تحديد المسار','إصدار عرض','تأكيد الحجز','تنفيذ النقل'],pop:['استقبال مطار','جولات سياحية','نقل المؤتمرات']},
+    {id:8,title:'برامج شهر العسل',cat:'سياحة خارجية',icon:'\\uD83D\\uDC91',status:'نشط',price:'من 480 ر.ع للشخصين',dur:'5–10 أيام',target:'الأزواج الجدد',cap:'2 أشخاص',desc:'باقات مخصصة للأزواج الجدد تجمع الرومانسية والترفيه في وجهات فاخرة.',inc:['غرفة ديلوكس','زهور ترحيبية','عشاء رومانسي'],steps:['تحديد الوجهة','تخصيص البرنامج','دفع 50%','تنفيذ البرنامج'],pop:['المالديف','إيطاليا','باريس','بالي']},
   ];
 
   let services = JSON.parse(localStorage.getItem('heg_services')||'null') || defaultServices;
@@ -1399,7 +1400,7 @@ app.get('/services', (c) => {
     document.getElementById('grid').innerHTML=list.map(s=>\`
       <div class="scard">
         <div class="scard-head">
-          <div class="scard-icon" style="background:\${iconBgs[s.cat]||'#F1EFE8'}">\${s.icon||catIcons[s.cat]||'🔹'}</div>
+          <div class="scard-icon" style="background:\${iconBgs[s.cat]||'#F1EFE8'}">\${s.icon||catIcons[s.cat]||'\\uD83D\\uDD39'}</div>
           <div class="scard-info">
             <div class="scard-title">\${s.title}</div>
             <div class="scard-cat">\${s.cat} · \${s.dur}</div>
@@ -1467,7 +1468,7 @@ app.get('/services', (c) => {
       title,
       cat:document.getElementById('f-cat').value,
       status:document.getElementById('f-status').value,
-      icon:document.getElementById('f-icon').value.trim()||catIcons[document.getElementById('f-cat').value]||'🔹',
+      icon:document.getElementById('f-icon').value.trim()||catIcons[document.getElementById('f-cat').value]||'\\uD83D\\uDD39',
       price:document.getElementById('f-price').value.trim(),
       dur:document.getElementById('f-dur').value.trim(),
       target:document.getElementById('f-target').value.trim(),
@@ -1480,14 +1481,14 @@ app.get('/services', (c) => {
     if(editId){const i=services.findIndex(x=>x.id===editId);if(i>=0)services[i]=obj;}
     else{services.push(obj);}
     save();closeModal();render();
-    showToast(editId?'✅ تم تعديل الخدمة':'✅ تمت إضافة الخدمة الجديدة');
+    showToast(editId?'تم تعديل الخدمة':'تمت إضافة الخدمة الجديدة');
   }
 
   function delService(id){
     if(!confirm('هل أنت متأكد من حذف هذه الخدمة؟')) return;
     services=services.filter(x=>x.id!==id);
     save();render();
-    showToast('🗑️ تم حذف الخدمة');
+    showToast('تم حذف الخدمة');
   }
 
   buildFilters();render();
@@ -1747,7 +1748,7 @@ app.get('/finance', (c) => {
     if(editExpIdx>=0){expenses[editExpIdx]=r;editExpIdx=-1;document.getElementById('e-add-btn').innerHTML='<i class="fas fa-plus"></i> إضافة';}
     else expenses.push(r);
     clearExpFields();saveData();renderExpenses();updateKPIs();
-    showToast('✅ تم حفظ بند المصروف');
+    showToast('تم حفظ بند المصروف');
   }
   function addIncome(){
     const r=getIncFields();
@@ -1755,7 +1756,7 @@ app.get('/finance', (c) => {
     if(editIncIdx>=0){incomes[editIncIdx]=r;editIncIdx=-1;document.getElementById('i-add-btn').innerHTML='<i class="fas fa-plus"></i> إضافة';}
     else incomes.push(r);
     clearIncFields();saveData();renderIncomes();updateKPIs();
-    showToast('✅ تم حفظ الوارد');
+    showToast('تم حفظ الوارد');
   }
 
   function editExp(i){
@@ -1781,11 +1782,11 @@ app.get('/finance', (c) => {
 
   function delExp(i){
     if(!confirm('حذف هذا البند؟'))return;
-    expenses.splice(i,1);saveData();renderExpenses();updateKPIs();showToast('🗑️ تم حذف البند');
+    expenses.splice(i,1);saveData();renderExpenses();updateKPIs();showToast('تم حذف البند');
   }
   function delInc(i){
     if(!confirm('حذف هذا الوارد؟'))return;
-    incomes.splice(i,1);saveData();renderIncomes();updateKPIs();showToast('🗑️ تم حذف الوارد');
+    incomes.splice(i,1);saveData();renderIncomes();updateKPIs();showToast('تم حذف الوارد');
   }
 
   renderExpenses();renderIncomes();updateKPIs();
@@ -1955,12 +1956,12 @@ app.get('/whatsapp', (c) => {
   let clients = JSON.parse(localStorage.getItem('heg_clients')||'[]');
 
   const templates = {
-    welcome: 'مرحباً {name} 👋\\nنتشرف بخدمتكم في *HEG للسياحة* 🌍✈️\\nنقدم أفضل الباقات السياحية بأسعار مميزة.\\nهل تودون الاستفسار عن رحلتكم القادمة؟ نحن في خدمتكم! 😊',
-    offer: 'عرض خاص لعميلنا الكريم {name} 🌟\\n━━━━━━━━━━━━━━━━\\n🏖️ باقات صيفية حصرية\\n✈️ أسعار لا تُقاوم\\n🛡️ تأمين سفر شامل\\n━━━━━━━━━━━━━━━━\\nتواصل معنا الآن لحجز مكانك! ⬇️',
-    eid: '🌙 عيد مبارك وكل عام وأنتم بخير {name}\\nبمناسبة العيد المبارك، نقدم لكم عروضاً استثنائية على رحلات العيد.\\nتمنياتنا لكم بعيد سعيد وإجازة مميزة!\\n— فريق *HEG للسياحة* 🌟',
-    reminder: 'تذكير ودي لعميلنا {name} 👋\\nنذكركم بموعد رحلتكم القادمة مع HEG.\\nللاستفسار عن التفاصيل أو أي تعديلات، تواصلوا معنا على الفور.\\nنتمنى لكم رحلة ممتعة! ✈️🌍',
-    confirm: 'تأكيد الحجز ✅\\nعزيزنا {name}، تم تأكيد حجزكم بنجاح.\\nسيتم إرسال تفاصيل الرحلة كاملة قريباً.\\nشكراً لثقتكم بـ *HEG للسياحة* 🙏',
-    followup: 'أهلاً {name} 😊\\nنأمل أنكم بخير وأن رحلتكم كانت ممتعة!\\nيسعدنا معرفة رأيكم في الخدمة، وهل أعجبتكم تجربة السفر معنا؟\\nآراؤكم تهمنا 💙 *HEG للسياحة*'
+    welcome: 'مرحباً {name}' + String.fromCharCode(10) + 'نتشرف بخدمتكم في HEG للسياحة' + String.fromCharCode(10) + 'نقدم أفضل الباقات السياحية بأسعار مميزة.' + String.fromCharCode(10) + 'هل تودون الاستفسار عن رحلتكم القادمة؟ نحن في خدمتكم!',
+    offer: 'عرض خاص لعميلنا الكريم {name}' + String.fromCharCode(10) + 'باقات صيفية حصرية - أسعار لا تقاوم - تأمين سفر شامل' + String.fromCharCode(10) + 'تواصل معنا الآن لحجز مكانك!',
+    eid: 'عيد مبارك وكل عام وأنتم بخير {name}' + String.fromCharCode(10) + 'بمناسبة العيد المبارك، نقدم لكم عروضاً استثنائية على رحلات العيد.' + String.fromCharCode(10) + 'تمنياتنا لكم بعيد سعيد وإجازة مميزة! — فريق HEG للسياحة',
+    reminder: 'تذكير ودي لعميلنا {name}' + String.fromCharCode(10) + 'نذكركم بموعد رحلتكم القادمة مع HEG.' + String.fromCharCode(10) + 'للاستفسار عن التفاصيل أو أي تعديلات، تواصلوا معنا على الفور.' + String.fromCharCode(10) + 'نتمنى لكم رحلة ممتعة!',
+    confirm: 'تأكيد الحجز' + String.fromCharCode(10) + 'عزيزنا {name}، تم تأكيد حجزكم بنجاح.' + String.fromCharCode(10) + 'سيتم إرسال تفاصيل الرحلة كاملة قريباً.' + String.fromCharCode(10) + 'شكراً لثقتكم بـ HEG للسياحة',
+    followup: 'أهلاً {name}' + String.fromCharCode(10) + 'نأمل أنكم بخير وأن رحلتكم كانت ممتعة!' + String.fromCharCode(10) + 'يسعدنا معرفة رأيكم في الخدمة، وهل أعجبتكم تجربة السفر معنا؟' + String.fromCharCode(10) + 'آراؤكم تهمنا — HEG للسياحة'
   };
 
   function useTemplate(t){
@@ -2038,9 +2039,9 @@ app.get('/whatsapp', (c) => {
 
   function sendMessages(){
     const targets = getPhoneAndName();
-    if(!targets || !targets.length){ showToast('⚠️ اختر عميلاً أو أدخل رقماً'); return; }
+    if(!targets || !targets.length){ showToast('اختر عميلاً أو أدخل رقماً'); return; }
     const msgTemplate = document.getElementById('wa-message').value.trim();
-    if(!msgTemplate){ showToast('⚠️ اكتب نص الرسالة'); return; }
+    if(!msgTemplate){ showToast('اكتب نص الرسالة'); return; }
     targets.forEach((t, idx) => {
       const msg = msgTemplate.replace(/\\{name\\}/g, t.name||'');
       const phone = t.phone.replace(/[^0-9]/g,'');
@@ -2059,16 +2060,16 @@ app.get('/whatsapp', (c) => {
     localStorage.setItem('heg_wa_history', JSON.stringify(waHistory));
     document.getElementById('wa-sent-count').textContent = waHistory.reduce((s,h)=>s+h.count, 0);
     renderHistory();
-    showToast(\`📱 جاري فتح واتساب لـ \${targets.length} عميل...\`);
+    showToast('جاري فتح واتساب لـ ' + targets.length + ' عميل...');
   }
 
   function quickSend(){
     const p = document.getElementById('quick-phone').value.trim();
-    if(!p){ showToast('⚠️ أدخل رقم الهاتف'); return; }
+    if(!p){ showToast('أدخل رقم الهاتف'); return; }
     const phone = p.replace(/[^0-9]/g,'');
-    const msg = encodeURIComponent('مرحباً 👋\\nنتشرف بخدمتكم في *HEG للسياحة* 🌍✈️');
+    const msg = encodeURIComponent('مرحباً - HEG للسياحة');
     window.open('https://wa.me/'+phone+'?text='+msg,'_blank');
-    showToast('📱 جاري فتح واتساب...');
+    showToast('جاري فتح واتساب...');
   }
 
   function renderHistory(){
@@ -2096,7 +2097,7 @@ app.get('/whatsapp', (c) => {
 
   function clearHistory(){
     if(!confirm('مسح سجل الإرسال؟')) return;
-    waHistory=[];localStorage.removeItem('heg_wa_history');renderHistory();showToast('🗑️ تم مسح السجل');
+    waHistory=[];localStorage.removeItem('heg_wa_history');renderHistory();showToast('تم مسح السجل');
   }
 
   loadClientsList();
@@ -2284,7 +2285,7 @@ app.get('/site', (c) => {
       address: document.getElementById('site-address').value
     };
     localStorage.setItem('heg_site_data', JSON.stringify(data));
-    showToast('✅ تم حفظ معلومات الشركة');
+    showToast('تم حفظ معلومات الشركة');
   }
 
   function saveSocial(){
@@ -2295,7 +2296,7 @@ app.get('/site', (c) => {
       tt: document.getElementById('social-tt').value
     };
     localStorage.setItem('heg_social', JSON.stringify(social));
-    showToast('✅ تم حفظ روابط التواصل');
+    showToast('تم حفظ روابط التواصل');
   }
 
   function uploadLogo(input){
@@ -2304,7 +2305,7 @@ app.get('/site', (c) => {
     reader.onload = function(e){
       localStorage.setItem('heg_site_logo', e.target.result);
       showLogo(e.target.result);
-      showToast('✅ تم رفع الشعار بنجاح');
+      showToast('تم رفع الشعار بنجاح');
     };
     reader.readAsDataURL(input.files[0]);
   }
@@ -2320,7 +2321,7 @@ app.get('/site', (c) => {
     document.getElementById('logo-inner').innerHTML =
       \`<i class="fas fa-cloud-upload-alt" style="font-size:24px;color:var(--text-muted);display:block;margin-bottom:6px"></i>
        <span style="font-size:12px;color:var(--text-muted)">اضغط لرفع الشعار</span>\`;
-    showToast('🗑️ تم حذف الشعار');
+    showToast('تم حذف الشعار');
   }
 
   function uploadBanners(input){
@@ -2328,7 +2329,7 @@ app.get('/site', (c) => {
     let banners = JSON.parse(localStorage.getItem('heg_banners')||'[]');
     let loaded = 0;
     files.forEach(file=>{
-      if(file.size > 5*1024*1024){ showToast('⚠️ حجم الصورة أكبر من 5MB'); return; }
+      if(file.size > 5*1024*1024){ showToast('حجم الصورة أكبر من 5MB'); return; }
       const reader = new FileReader();
       reader.onload = function(e){
         banners.push({id:Date.now()+Math.random(),src:e.target.result,name:file.name,date:new Date().toLocaleDateString('ar-EG')});
@@ -2336,7 +2337,7 @@ app.get('/site', (c) => {
         if(loaded===files.length){
           localStorage.setItem('heg_banners', JSON.stringify(banners));
           loadBanners();
-          showToast(\`✅ تم رفع \${files.length} صورة\`);
+          showToast('تم رفع ' + files.length + ' صورة');
         }
       };
       reader.readAsDataURL(file);
@@ -2369,7 +2370,7 @@ app.get('/site', (c) => {
     banners = banners.filter(b=>b.id!=id);
     localStorage.setItem('heg_banners', JSON.stringify(banners));
     loadBanners();
-    showToast('🗑️ تم حذف الصورة');
+    showToast('\\uD83D\\uDDD1\\FE0F تم حذف الصورة');
   }
 
   function updateColor(varName, value){
@@ -2377,7 +2378,7 @@ app.get('/site', (c) => {
     const colors = JSON.parse(localStorage.getItem('heg_colors')||'{}');
     colors[varName] = value;
     localStorage.setItem('heg_colors', JSON.stringify(colors));
-    showToast('🎨 تم تغيير اللون');
+    showToast('\\uD83C\\uDFA8 تم تغيير اللون');
   }
 
   function resetColors(){
