@@ -1,5 +1,8 @@
 import { Hono } from 'hono'
 import { serveStatic } from 'hono/cloudflare-workers'
+import { servicesPage } from './page_services'
+import { usersPage } from './page_users'
+import { designPage } from './page_design'
 
 const app = new Hono()
 
@@ -483,10 +486,16 @@ const layout = (title: string, activeNav: string, content: string) => `<!DOCTYPE
         <a href="/site" class="nav-item ${activeNav === 'site' ? 'active' : ''}">
           <i class="fas fa-globe"></i> إدارة الموقع
         </a>
+        <a href="/design" class="nav-item ${activeNav === 'design' ? 'active' : ''}">
+          <i class="fas fa-magic" style="color:var(--gold)"></i> تصميم الواجهة
+        </a>
       </div>
       <div class="nav-divider"></div>
       <div class="nav-section">
-        <div class="nav-section-label">التنظيم</div>
+        <div class="nav-section-label">الإدارة</div>
+        <a href="/users" class="nav-item ${activeNav === 'users' ? 'active' : ''}">
+          <i class="fas fa-users-cog"></i> المستخدمون
+        </a>
         <a href="/structure" class="nav-item ${activeNav === 'structure' ? 'active' : ''}">
           <i class="fas fa-sitemap"></i> الهيكل التنظيمي
         </a>
@@ -1319,203 +1328,7 @@ app.get('/invoices', (c) => {
 
 // ======== SERVICES PAGE ========
 app.get('/services', (c) => {
-  const content = `
-  <div class="page-header">
-    <div class="page-header-left">
-      <div class="page-header-title">إدارة الخدمات السياحية</div>
-      <div class="page-header-sub">أضف وعدّل خدمات شركة HEG للسياحة</div>
-    </div>
-    <i class="fas fa-concierge-bell page-header-icon"></i>
-  </div>
-
-  <div class="action-bar">
-    <div class="search-wrap">
-      <i class="fas fa-search"></i>
-      <input id="srch" placeholder="بحث في الخدمات..." oninput="render()">
-    </div>
-    <button class="btn btn-primary" onclick="openModal()">
-      <i class="fas fa-plus"></i> إضافة خدمة
-    </button>
-  </div>
-
-  <div class="filter-bar" id="frow"></div>
-  <div id="count-bar" style="font-size:12px;color:var(--text-muted);margin-bottom:.8rem"></div>
-  <div class="service-grid" id="grid"></div>
-
-  <!-- MODAL -->
-  <div class="modal-overlay" id="modal-overlay">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title" id="modal-title">إضافة خدمة جديدة</div>
-        <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-      </div>
-      <div class="modal-body">
-        <div class="form-grid">
-          <div class="field full"><label>اسم الخدمة *</label><input id="f-title" placeholder="مثال: باقة سياحة داخلية"></div>
-          <div class="field">
-            <label>التصنيف</label>
-            <select id="f-cat">
-              <option>سياحة داخلية</option><option>سياحة خارجية</option>
-              <option>خدمات سفر</option><option>سياحة دينية</option><option>أعمال وشركات</option>
-            </select>
-          </div>
-          <div class="field">
-            <label>الحالة</label>
-            <select id="f-status"><option>نشط</option><option>موسمي</option><option>مخصص</option></select>
-          </div>
-          <div class="field"><label>الأيقونة</label><input id="f-icon" placeholder="\\2708\\FE0F" maxlength="4"></div>
-          <div class="field"><label>السعر</label><input id="f-price" placeholder="من 45 ر.ع للشخص"></div>
-          <div class="field"><label>المدة</label><input id="f-dur" placeholder="يوم – أسبوع"></div>
-          <div class="field"><label>الفئة المستهدفة</label><input id="f-target" placeholder="أفراد، عائلات"></div>
-          <div class="field"><label>الطاقة الاستيعابية</label><input id="f-cap" placeholder="2–50 شخص"></div>
-          <div class="field full"><label>وصف الخدمة</label><textarea id="f-desc" placeholder="وصف مختصر..."></textarea></div>
-          <div class="field full"><label>ما تشمله (افصل بفاصلة)</label><input id="f-inc" placeholder="نقل، إقامة، مرشد سياحي"></div>
-          <div class="field full"><label>خطوات التنفيذ (افصل بفاصلة)</label><input id="f-steps" placeholder="استقبال الطلب، إعداد العرض، تأكيد الحجز"></div>
-          <div class="field full"><label>الأكثر طلباً (افصل بفاصلة)</label><input id="f-pop" placeholder="جبل شمس، وادي شاب، نزوى"></div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-outline" onclick="closeModal()">إلغاء</button>
-        <button class="btn btn-primary" onclick="saveService()"><i class="fas fa-save"></i> حفظ الخدمة</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-  const iconBgs={'سياحة داخلية':'#E5F3F5','سياحة خارجية':'#E1F5EE','خدمات سفر':'#FAEEDA','سياحة دينية':'#EEEDFE','أعمال وشركات':'#FAECE7'};
-  const catIcons={'سياحة داخلية':'\\uD83C\\uDFD4\\FE0F','سياحة خارجية':'\\2708\\FE0F','خدمات سفر':'\\uD83D\\uDEC2','سياحة دينية':'\\uD83D\\uDD4C','أعمال وشركات':'\\uD83E\\uDD1D'};
-  const defaultServices=[
-    {id:1,title:'باقات سياحة داخلية',cat:'سياحة داخلية',icon:'\\uD83C\\uDFD4\\FE0F',status:'نشط',price:'من 45 ر.ع للشخص',dur:'يوم – أسبوع',target:'أفراد، عائلات، مجموعات',cap:'2–50 شخص',desc:'برامج سياحية متكاملة داخل سلطنة عُمان تشمل الوجهات الطبيعية والتاريخية.',inc:['نقل ذهاب وإياب','مرشد سياحي معتمد','وجبات خلال الجولة'],steps:['استقبال الطلب','إعداد العرض','تأكيد الحجز','تنفيذ البرنامج'],pop:['جبل شمس','وادي شاب','نزوى','صلالة']},
-    {id:2,title:'باقات سياحة خارجية',cat:'سياحة خارجية',icon:'\\2708\\FE0F',status:'نشط',price:'من 350 ر.ع للشخص',dur:'5 أيام – 3 أسابيع',target:'أفراد، عائلات، أزواج',cap:'2–30 شخص',desc:'برامج سفر منظمة لوجهات دولية مع تأمين الطيران والإقامة والجولات.',inc:['تذاكر الطيران','فندق 3–5 نجوم','جولات منظمة','تأمين سفر'],steps:['تحديد الوجهة','إصدار العرض','دفع 50% مقدم','تسليم مستندات السفر'],pop:['تركيا','جورجيا','تايلاند','الأردن']},
-    {id:3,title:'خدمة التأشيرات',cat:'خدمات سفر',icon:'\\uD83D\\uDEC2',status:'نشط',price:'من 15 ر.ع رسوم خدمة',dur:'3–15 يوم عمل',target:'الأفراد والشركات',cap:'غير محدود',desc:'استخراج التأشيرات لمختلف الدول مع متابعة الطلب حتى الموافقة.',inc:['مراجعة المستندات','تقديم الطلب','متابعة الطلب'],steps:['تقديم جواز السفر','مراجعة المتطلبات','دفع الرسوم','استلام التأشيرة'],pop:['شنغن','أمريكا','المملكة المتحدة','كندا']},
-    {id:4,title:'حجوزات الفنادق',cat:'خدمات سفر',icon:'\\uD83C\\uDFE8',status:'نشط',price:'حسب الفندق + 5% عمولة',dur:'فوري',target:'الأفراد والشركات',cap:'غير محدود',desc:'حجز الفنادق محلياً ودولياً بأسعار تنافسية من خلال شراكات مباشرة.',inc:['مقارنة أسعار','تأكيد فوري','سياسة إلغاء واضحة'],steps:['تحديد الوجهة','عرض الخيارات','الدفع','إرسال التأكيد'],pop:['فنادق مسقط','صلالة','دبي']},
-    {id:5,title:'السياحة الدينية',cat:'سياحة دينية',icon:'\\uD83D\\uDD4C',status:'موسمي',price:'من 650 ر.ع للشخص',dur:'7–14 يوم',target:'الأفراد والعائلات',cap:'10–40 شخص',desc:'برامج العمرة والزيارات الدينية وجولات المواقع الإسلامية.',inc:['تذاكر طيران','إقامة قرب الحرم','مرشد ديني'],steps:['تسجيل الطلب','دفع كامل المبلغ','استخراج التصريح','تنفيذ البرنامج'],pop:['عمرة رمضان','عمرة شعبان','المدينة المنورة']},
-    {id:6,title:'سياحة الأعمال والمؤتمرات',cat:'أعمال وشركات',icon:'\\uD83E\\uDD1D',status:'نشط',price:'حسب العقد',dur:'يوم – أسبوع',target:'الشركات والمؤسسات',cap:'10–200 شخص',desc:'تنظيم رحلات العمل ومؤتمرات الشركات وبرامج تحفيز الموظفين.',inc:['تنظيم كامل','نقل وإقامة','كاترينج وتجهيزات'],steps:['اجتماع تحديد الاحتياجات','إصدار عرض','توقيع العقد','تنفيذ الفعالية'],pop:['تيم بيلدنج','مؤتمرات سنوية','احتفاليات شركات']},
-    {id:7,title:'تأجير الحافلات والنقل',cat:'خدمات سفر',icon:'\\uD83D\\uDE8C',status:'نشط',price:'من 80 ر.ع/يوم',dur:'حسب الطلب',target:'المجموعات والشركات',cap:'10–50 شخص',desc:'خدمات نقل سياحي بحافلات مجهزة مع سائقين محترفين.',inc:['حافلة مكيفة','سائق محترف','تأمين'],steps:['تحديد المسار','إصدار عرض','تأكيد الحجز','تنفيذ النقل'],pop:['استقبال مطار','جولات سياحية','نقل المؤتمرات']},
-    {id:8,title:'برامج شهر العسل',cat:'سياحة خارجية',icon:'\\uD83D\\uDC91',status:'نشط',price:'من 480 ر.ع للشخصين',dur:'5–10 أيام',target:'الأزواج الجدد',cap:'2 أشخاص',desc:'باقات مخصصة للأزواج الجدد تجمع الرومانسية والترفيه في وجهات فاخرة.',inc:['غرفة ديلوكس','زهور ترحيبية','عشاء رومانسي'],steps:['تحديد الوجهة','تخصيص البرنامج','دفع 50%','تنفيذ البرنامج'],pop:['المالديف','إيطاليا','باريس','بالي']},
-  ];
-
-  let services = JSON.parse(localStorage.getItem('heg_services')||'null') || defaultServices;
-  let editId=null, activeF='الكل';
-  const cats=['الكل','سياحة داخلية','سياحة خارجية','خدمات سفر','سياحة دينية','أعمال وشركات'];
-
-  function save(){localStorage.setItem('heg_services',JSON.stringify(services));}
-
-  function buildFilters(){
-    document.getElementById('frow').innerHTML=cats.map(c=>
-      \`<button class="filter-btn\${c===activeF?' on':''}" onclick="setF('\${c}')">\${c}</button>\`
-    ).join('');
-  }
-  function setF(c){activeF=c;buildFilters();render();}
-
-  function render(){
-    const q=document.getElementById('srch').value.trim().toLowerCase();
-    let list=services;
-    if(activeF!=='الكل') list=list.filter(s=>s.cat===activeF);
-    if(q) list=list.filter(s=>s.title.toLowerCase().includes(q)||s.desc.toLowerCase().includes(q));
-    document.getElementById('count-bar').textContent=list.length+' خدمة';
-    if(!list.length){
-      document.getElementById('grid').innerHTML='<div class="empty-state"><i class="fas fa-search"></i>لا توجد خدمات مطابقة</div>';
-      return;
-    }
-    document.getElementById('grid').innerHTML=list.map(s=>\`
-      <div class="scard">
-        <div class="scard-head">
-          <div class="scard-icon" style="background:\${iconBgs[s.cat]||'#F1EFE8'}">\${s.icon||catIcons[s.cat]||'\\uD83D\\uDD39'}</div>
-          <div class="scard-info">
-            <div class="scard-title">\${s.title}</div>
-            <div class="scard-cat">\${s.cat} · \${s.dur}</div>
-          </div>
-          <span class="badge \${s.status==='نشط'?'b-active':s.status==='موسمي'?'b-seasonal':'b-custom'}">\${s.status}</span>
-        </div>
-        <div class="scard-desc">\${s.desc}</div>
-        \${s.inc&&s.inc.length?\`<div style="padding:0 14px 8px;display:flex;flex-wrap:wrap;gap:4px">
-          \${s.inc.map(i=>\`<span style="font-size:10px;background:var(--bg-light);padding:2px 6px;border-radius:4px;color:var(--text-muted)">\${i}</span>\`).join('')}
-        </div>\`:''}
-        <div class="scard-foot">
-          <div class="scard-price"><i class="fas fa-tag" style="margin-left:4px;opacity:.6"></i>\${s.price}</div>
-          <div style="display:flex;gap:6px">
-            <button class="btn btn-outline btn-sm" onclick="openEdit(\${s.id})"><i class="fas fa-pen"></i> تعديل</button>
-            <button class="btn btn-danger btn-sm" onclick="delService(\${s.id})"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>
-      </div>
-    \`).join('');
-  }
-
-  function fillForm(s){
-    document.getElementById('f-title').value=s?s.title:'';
-    document.getElementById('f-cat').value=s?s.cat:'سياحة داخلية';
-    document.getElementById('f-status').value=s?s.status:'نشط';
-    document.getElementById('f-icon').value=s?s.icon:'';
-    document.getElementById('f-price').value=s?s.price:'';
-    document.getElementById('f-dur').value=s?s.dur:'';
-    document.getElementById('f-target').value=s?s.target:'';
-    document.getElementById('f-cap').value=s?s.cap:'';
-    document.getElementById('f-desc').value=s?s.desc:'';
-    document.getElementById('f-inc').value=s?(s.inc||[]).join('، '):'';
-    document.getElementById('f-steps').value=s?(s.steps||[]).join('، '):'';
-    document.getElementById('f-pop').value=s?(s.pop||[]).join('، '):'';
-  }
-
-  function openModal(){
-    editId=null;
-    document.getElementById('modal-title').textContent='إضافة خدمة جديدة';
-    fillForm(null);
-    document.getElementById('modal-overlay').classList.add('show');
-  }
-  function openEdit(id){
-    const s=services.find(x=>x.id===id);
-    if(!s)return;
-    editId=id;
-    document.getElementById('modal-title').textContent='تعديل: '+s.title;
-    fillForm(s);
-    document.getElementById('modal-overlay').classList.add('show');
-  }
-  function closeModal(){
-    document.getElementById('modal-overlay').classList.remove('show');
-    editId=null;
-  }
-  document.getElementById('modal-overlay').addEventListener('click',function(e){
-    if(e.target===this) closeModal();
-  });
-
-  function saveService(){
-    const title=document.getElementById('f-title').value.trim();
-    if(!title){document.getElementById('f-title').focus();return;}
-    const split=v=>v.split(/[،,]+/).map(x=>x.trim()).filter(Boolean);
-    const obj={
-      id:editId||Date.now(),
-      title,
-      cat:document.getElementById('f-cat').value,
-      status:document.getElementById('f-status').value,
-      icon:document.getElementById('f-icon').value.trim()||catIcons[document.getElementById('f-cat').value]||'\\uD83D\\uDD39',
-      price:document.getElementById('f-price').value.trim(),
-      dur:document.getElementById('f-dur').value.trim(),
-      target:document.getElementById('f-target').value.trim(),
-      cap:document.getElementById('f-cap').value.trim(),
-      desc:document.getElementById('f-desc').value.trim(),
-      inc:split(document.getElementById('f-inc').value),
-      steps:split(document.getElementById('f-steps').value),
-      pop:split(document.getElementById('f-pop').value),
-    };
-    if(editId){const i=services.findIndex(x=>x.id===editId);if(i>=0)services[i]=obj;}
-    else{services.push(obj);}
-    save();closeModal();render();
-    showToast(editId?'تم تعديل الخدمة':'تمت إضافة الخدمة الجديدة');
-  }
-
-  function delService(id){
-    if(!confirm('هل أنت متأكد من حذف هذه الخدمة؟')) return;
-    services=services.filter(x=>x.id!==id);
-    save();render();
-    showToast('تم حذف الخدمة');
-  }
-
-  buildFilters();render();
-  </script>
-  `
-  return c.html(layout('الخدمات', 'services', content))
+  return c.html(layout('الخدمات', 'services', servicesPage()))
 })
 
 // ======== FINANCE PAGE ========
@@ -2633,6 +2446,17 @@ app.get('/structure', (c) => {
   `
   return c.html(layout('الهيكل التنظيمي', 'structure', content))
 })
+
+// ======== USERS PAGE ========
+app.get('/users', (c) => {
+  return c.html(layout('المستخدمون والصلاحيات', 'users', usersPage()))
+})
+
+// ======== DESIGN PAGE ========
+app.get('/design', (c) => {
+  return c.html(layout('تصميم الواجهة', 'design', designPage()))
+})
+
 
 export default app
 
